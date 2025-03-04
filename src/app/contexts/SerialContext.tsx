@@ -15,11 +15,10 @@ type SerialContextType = {
   isSerialSupported: boolean;
   isConnected: boolean;
   isLoading: boolean;
-  log: string;
   errorMessage: string;
   baudRate: number;
-  receivedData: string;
   logs: LogEntry[];
+  gameStatus: 'none' | 'running' | 'paused';
   addLog: (entry: LogEntry) => void;
   setBaudRate: (rate: number) => void;
   connect: () => Promise<void>;
@@ -34,11 +33,10 @@ const defaultContext: SerialContextType = {
   isSerialSupported: false,
   isConnected: false,
   isLoading: false,
-  log: "",
   errorMessage: "",
   baudRate: 115200,
-  receivedData: "",
   logs: [],
+  gameStatus: 'none',
   addLog: () => {},
   setBaudRate: () => {},
   connect: async () => {},
@@ -76,12 +74,12 @@ export const SerialProvider = ({ children }: SerialProviderProps) => {
   const [isSerialSupported, setIsSerialSupported] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [log, setLog] = useState("");
-  const [receivedData, setReceivedData] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [baudRate, setBaudRate] = useState(115200);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [buffer, setBuffer] = useState("");
+  const [gameStatus, setGameStatus] = useState<'none' | 'running' | 'paused'>('none');
+  const [receivedData, setReceivedData] = useState("");
 
   // Fonction pour ajouter un log
   const addLog = (entry: LogEntry) => {
@@ -92,6 +90,28 @@ export const SerialProvider = ({ children }: SerialProviderProps) => {
   const getTimestamp = () => {
     const now = new Date();
     return `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}.${now.getMilliseconds().toString().padStart(3, '0')}`;
+  };
+
+  // Fonction pour traiter les données du jeu
+  const processGameData = (message: string) => {
+    if (message.startsWith('game:all:') || message.startsWith('game:run:')) {
+      const parts = message.split(':')[2].split(',');
+      const status = parseInt(parts[0]);
+      
+      switch (status) {
+        case 0:
+          setGameStatus('none');
+          break;
+        case 1:
+          setGameStatus('running');
+          break;
+        case 2:
+          setGameStatus('paused');
+          break;
+        default:
+          console.warn('Statut de jeu inconnu:', status);
+      }
+    }
   };
 
   // Mettre à jour les logs quand on reçoit des données
@@ -107,11 +127,15 @@ export const SerialProvider = ({ children }: SerialProviderProps) => {
           // Traiter toutes les lignes complètes sauf la dernière
           lines.slice(0, -1).forEach(line => {
             if (line.trim()) {
+              // Ajouter aux logs
               addLog({
                 type: 'received',
                 message: line,
                 timestamp: getTimestamp()
               });
+              
+              // Traiter les données du jeu si c'est un message de jeu
+              processGameData(line);
             }
           });
           // Mettre à jour le buffer avec la dernière ligne incomplète
@@ -125,10 +149,11 @@ export const SerialProvider = ({ children }: SerialProviderProps) => {
     }
   }, [receivedData]);
 
-  // Nettoyer le buffer à la déconnexion
+  // Nettoyer le buffer et réinitialiser le statut du jeu à la déconnexion
   useEffect(() => {
     if (!isConnected) {
       setBuffer("");
+      setGameStatus('none');
     }
   }, [isConnected]);
 
@@ -208,7 +233,6 @@ export const SerialProvider = ({ children }: SerialProviderProps) => {
             break;
           }
           if (value) {
-            setLog(prev => prev + value);
             setReceivedData(prev => prev + value);
           }
         } catch (error) {
@@ -487,7 +511,8 @@ export const SerialProvider = ({ children }: SerialProviderProps) => {
 
   // Fonction pour effacer le log
   const clearLog = () => {
-    setLog("");
+    setLogs([]);
+    setReceivedData("");
   };
 
   // Valeur du contexte
@@ -496,11 +521,10 @@ export const SerialProvider = ({ children }: SerialProviderProps) => {
     isSerialSupported,
     isConnected,
     isLoading,
-    log,
     errorMessage,
     baudRate,
-    receivedData,
     logs,
+    gameStatus,
     addLog,
     setBaudRate,
     connect,
