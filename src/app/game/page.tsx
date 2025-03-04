@@ -109,11 +109,11 @@ export default function GamePage() {
     // Mise à jour du statut
     setGameStatus(gameData.status);
     
-    // Si le jeu est terminé (status 3), traiter la fin de jeu
-    if (gameData.status === 3) {
+    // Si le jeu est terminé (status 0 avec des points), traiter la fin de jeu
+    if (gameData.status === 0 && gameData.player1Points !== undefined && gameData.player2Points !== undefined) {
       // Déterminer le gagnant (celui qui a le plus de points)
-      const winner = gameData.player1Points! > gameData.player2Points! ? "Joueur 1" : 
-                    (gameData.player2Points! > gameData.player1Points! ? "Joueur 2" : "Match nul");
+      const winner = gameData.player1Points > gameData.player2Points ? "Joueur 1" : 
+                    (gameData.player2Points > gameData.player1Points ? "Joueur 2" : "Match nul");
       endGame(winner);
       return;
     }
