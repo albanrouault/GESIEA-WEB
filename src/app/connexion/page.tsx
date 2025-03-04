@@ -1,13 +1,21 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSerial } from "../contexts/SerialContext";
 
 export default function ConnexionPage() {
   const router = useRouter();
   const [command, setCommand] = useState("");
-  const { connect, disconnect, sendCommand, isConnected, receivedData, errorMessage } = useSerial();
+  const { connect, disconnect, sendCommand, isConnected, logs, errorMessage } = useSerial();
+  const consoleRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll vers le bas quand de nouvelles données arrivent
+  useEffect(() => {
+    if (consoleRef.current) {
+      consoleRef.current.scrollTop = consoleRef.current.scrollHeight;
+    }
+  }, [logs]);
   
   // Gérer la sélection du port
   const handleConnect = async () => {
@@ -149,10 +157,25 @@ export default function ConnexionPage() {
             <div className="w-3 h-3 rounded-full bg-green-500 mr-2"></div>
             <span className="text-xs text-gray-300">Serial Monitor</span>
           </div>
-          <div className="console-container h-[calc(100%-36px)] overflow-y-auto px-2 py-2 custom-scrollbar">
-            <pre className="whitespace-pre-wrap text-cyan-400 font-mono text-sm">
-              {receivedData || "// En attente de données..."}
-            </pre>
+          <div 
+            ref={consoleRef}
+            className="console-container h-[calc(100%-36px)] overflow-y-auto px-2 py-2 custom-scrollbar"
+          >
+            {logs.map((log, index) => (
+              <div 
+                key={index} 
+                className={`mb-1 font-mono text-sm ${log.type === 'sent' ? 'text-green-400' : 'text-cyan-400'}`}
+              >
+                <span className="text-gray-500">[{log.timestamp}] </span>
+                <span className="text-gray-400">{log.type === 'sent' ? '→' : '←'} </span>
+                {log.message}
+              </div>
+            ))}
+            {logs.length === 0 && (
+              <div className="text-gray-500 font-mono text-sm">
+                // En attente de données...
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -2,6 +2,13 @@
 
 import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 
+// Type pour les entrées de log
+interface LogEntry {
+  type: 'sent' | 'received';
+  message: string;
+  timestamp: string;
+}
+
 // Type pour le contexte
 type SerialContextType = {
   isClient: boolean;
@@ -12,6 +19,8 @@ type SerialContextType = {
   errorMessage: string;
   baudRate: number;
   receivedData: string;
+  logs: LogEntry[];
+  addLog: (entry: LogEntry) => void;
   setBaudRate: (rate: number) => void;
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;
@@ -29,6 +38,8 @@ const defaultContext: SerialContextType = {
   errorMessage: "",
   baudRate: 115200,
   receivedData: "",
+  logs: [],
+  addLog: () => {},
   setBaudRate: () => {},
   connect: async () => {},
   disconnect: async () => {},
@@ -49,6 +60,7 @@ export const SerialProvider = ({ children }: SerialProviderProps) => {
   const portRef = useRef<any>(null);
   const readerRef = useRef<any>(null);
   const writerRef = useRef<any>(null);
+  const previousReceivedData = useRef<string>('');
   
   // Référence pour suivre les tentatives de déconnexion
   const disconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -68,6 +80,57 @@ export const SerialProvider = ({ children }: SerialProviderProps) => {
   const [receivedData, setReceivedData] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [baudRate, setBaudRate] = useState(115200);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [buffer, setBuffer] = useState("");
+
+  // Fonction pour ajouter un log
+  const addLog = (entry: LogEntry) => {
+    setLogs(prev => [...prev, entry]);
+  };
+
+  // Fonction pour formater l'horodatage
+  const getTimestamp = () => {
+    const now = new Date();
+    return `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}.${now.getMilliseconds().toString().padStart(3, '0')}`;
+  };
+
+  // Mettre à jour les logs quand on reçoit des données
+  useEffect(() => {
+    if (receivedData && receivedData !== previousReceivedData.current) {
+      const newData = receivedData.substring(previousReceivedData.current.length);
+      if (newData) {
+        // Chercher toutes les lignes complètes dans le buffer + nouvelles données
+        const lines = (buffer + newData).split(/\r\n|\n/);
+        
+        // S'il y a au moins une ligne complète
+        if (lines.length > 1) {
+          // Traiter toutes les lignes complètes sauf la dernière
+          lines.slice(0, -1).forEach(line => {
+            if (line.trim()) {
+              addLog({
+                type: 'received',
+                message: line,
+                timestamp: getTimestamp()
+              });
+            }
+          });
+          // Mettre à jour le buffer avec la dernière ligne incomplète
+          setBuffer(lines[lines.length - 1]);
+        } else {
+          // Si pas de ligne complète, ajouter au buffer
+          setBuffer(prev => prev + newData);
+        }
+      }
+      previousReceivedData.current = receivedData;
+    }
+  }, [receivedData]);
+
+  // Nettoyer le buffer à la déconnexion
+  useEffect(() => {
+    if (!isConnected) {
+      setBuffer("");
+    }
+  }, [isConnected]);
 
   // Vérifie si nous sommes côté client et si l'API Web Serial est supportée
   useEffect(() => {
@@ -406,6 +469,13 @@ export const SerialProvider = ({ children }: SerialProviderProps) => {
     if (!writerRef.current || !isConnected || !cmd) return;
     
     try {
+      // Ajouter le log avant l'envoi
+      addLog({
+        type: 'sent',
+        message: cmd,
+        timestamp: getTimestamp()
+      });
+      
       await writerRef.current.write(cmd + "\r\n");
       return Promise.resolve();
     } catch (error: any) {
@@ -430,6 +500,8 @@ export const SerialProvider = ({ children }: SerialProviderProps) => {
     errorMessage,
     baudRate,
     receivedData,
+    logs,
+    addLog,
     setBaudRate,
     connect,
     disconnect,
