@@ -229,8 +229,8 @@ export default function GamePage() {
     localStorage.setItem("exchanges", exchanges.toString());
     localStorage.setItem("finalScore", `${scoreLeft}-${scoreRight}`);
     
-    // Envoyer la commande de fin de jeu au STM32
-    if (isConnected) {
+    // Envoyer la commande de fin de jeu au STM32 uniquement si c'est un abandon volontaire
+    if (isConnected && winner === "Abandon") {
       sendCommand("game:stop");
     }
     
