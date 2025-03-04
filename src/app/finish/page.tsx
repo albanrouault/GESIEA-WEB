@@ -10,7 +10,6 @@ export default function FinishPage() {
   const [gameData, setGameData] = useState({
     winner: "Joueur",
     duration: "00:00",
-    exchanges: 0,
     finalScore: "0-0"
   });
   
@@ -19,11 +18,10 @@ export default function FinishPage() {
     if (typeof window !== "undefined") {
       const winner = localStorage.getItem("winner");
       const duration = localStorage.getItem("duration");
-      const exchanges = localStorage.getItem("exchanges");
       const finalScore = localStorage.getItem("finalScore");
       
       // Si les données ne sont pas disponibles, rediriger vers la page de lancement
-      if (!winner || !duration || !exchanges || !finalScore) {
+      if (!winner || !duration || !finalScore) {
         router.push("/launch");
         return;
       }
@@ -31,7 +29,6 @@ export default function FinishPage() {
       setGameData({
         winner: winner,
         duration: duration,
-        exchanges: parseInt(exchanges),
         finalScore: finalScore
       });
     }
@@ -69,25 +66,21 @@ export default function FinishPage() {
               </div>
             </div>
             
-            <div className="text-center mb-3">
+            <div className="text-center mb-6">
               <h2 className="text-2xl font-bold text-white">Gagnant</h2>
               <p className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-yellow-300 to-yellow-500">{gameData.winner}</p>
             </div>
             
             <div className="h-px w-full bg-white opacity-10 my-4"></div>
             
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-6">
               <div className="text-center">
                 <div className="text-sm text-gray-400 mb-1">Score final</div>
-                <div className="text-2xl font-bold text-white">{gameData.finalScore}</div>
+                <div className="text-3xl font-bold text-white">{gameData.finalScore}</div>
               </div>
               <div className="text-center">
                 <div className="text-sm text-gray-400 mb-1">Durée</div>
-                <div className="text-2xl font-bold text-white">{gameData.duration}</div>
-              </div>
-              <div className="text-center col-span-2">
-                <div className="text-sm text-gray-400 mb-1">Échanges totaux</div>
-                <div className="text-2xl font-bold text-cyan-400">{gameData.exchanges}</div>
+                <div className="text-3xl font-bold text-cyan-400">{gameData.duration}</div>
               </div>
             </div>
           </div>

@@ -226,7 +226,6 @@ export default function GamePage() {
     // Sauvegarder les résultats dans localStorage pour la page de fin
     localStorage.setItem("winner", winner);
     localStorage.setItem("duration", duration);
-    localStorage.setItem("exchanges", exchanges.toString());
     localStorage.setItem("finalScore", `${scoreLeft}-${scoreRight}`);
     
     // Envoyer la commande de fin de jeu au STM32 uniquement si c'est un abandon volontaire
