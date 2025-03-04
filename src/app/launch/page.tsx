@@ -14,6 +14,26 @@ export default function LaunchPage() {
   const [loading, setLoading] = useState(true);
   const { isConnected, sendCommand } = useSerial();
   
+  // Calculer les dimensions du terrain
+  const calculateTerrainDimensions = () => {
+    // Obtenir la largeur maximale du terrain (max-w-5xl = 64rem = 1024px)
+    const maxWidth = 1024;
+    // Obtenir la hauteur de la fenêtre
+    const windowHeight = window.innerHeight;
+    // Calculer la hauteur du terrain (80vh)
+    const terrainHeight = windowHeight * 0.8;
+    
+    // Calculer la largeur réelle du terrain (en respectant le ratio)
+    const terrainWidth = Math.min(maxWidth, window.innerWidth);
+    
+    // Convertir en ratio 100 pour le microcontrôleur
+    const ratio = 100 / Math.max(terrainWidth, terrainHeight);
+    const width = Math.round(terrainWidth * ratio);
+    const height = Math.round(terrainHeight * ratio);
+    
+    return { width, height };
+  };
+
   // Vérifier si l'utilisateur est connecté
   useEffect(() => {
     if (!isConnected) {
@@ -31,8 +51,12 @@ export default function LaunchPage() {
   // Démarrage du jeu
   const handleLaunchGame = async () => {
     try {
+      // Calculer les dimensions réelles du terrain
+      const { width, height } = calculateTerrainDimensions();
+      
       // Envoi de la trame formatée au STM32 avec le nouveau format
-      await sendCommand(`game:play:${winPoints}:${ballSpeed}:${ballSize}:${paddleSpeed}:${paddleSize}`);
+      // Format: game:play:largeurTerrain:hauteurTerrain:pointsGagnants:vitesseBalle:tailleBalle:vitesseRaquette:tailleRaquette
+      await sendCommand(`game:play:${width}:${height}:${winPoints}:${ballSpeed}:${ballSize}:${paddleSpeed}:${paddleSize}`);
       
       // Stocker les paramètres pour le jeu
       localStorage.setItem("winPoints", winPoints.toString());
