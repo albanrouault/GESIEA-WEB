@@ -48,74 +48,121 @@ export default function LaunchPage() {
   // Écran de chargement
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-4">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mb-4"></div>
-        <p>Vérification de la connexion...</p>
+      <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-blue-800 to-purple-900 flex flex-col items-center justify-center p-4">
+        <div className="flex flex-col items-center">
+          <div className="animate-ping w-16 h-16 mb-8 rounded-full bg-cyan-400 opacity-75"></div>
+          <p className="text-white text-lg">Vérification de la connexion...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-4">
-      <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
-        <h1 className="text-2xl font-bold mb-6 text-center">Configuration du jeu</h1>
+    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-blue-800 to-purple-900 flex flex-col items-center justify-center p-6">
+      <div className="max-w-md w-full bg-black bg-opacity-30 backdrop-blur-md rounded-2xl shadow-2xl p-8 border border-white border-opacity-10">
+        <h1 className="text-3xl font-bold text-center mb-8 bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-300">
+          Configuration du jeu
+        </h1>
         
         {!isConnected && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-            <p>Vous n'êtes pas connecté à l'appareil STM32.</p>
-            <p>Veuillez retourner à la page de connexion.</p>
+          <div className="mb-8 p-4 bg-red-900 bg-opacity-50 border border-red-500 text-red-200 rounded-lg">
+            <div className="flex items-center">
+              <svg className="w-6 h-6 mr-3 text-red-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+              <div>
+                <p className="font-medium">Connexion perdue</p>
+                <p className="text-sm mt-1">Veuillez retourner à la page de connexion.</p>
+              </div>
+            </div>
           </div>
         )}
         
-        <div className="mb-6">
-          <label className="block text-gray-700 mb-2">Vitesse de la balle</label>
+        {/* 1. Bouton pour lancer le jeu */}
+        <div className="mb-8">
+          <button 
+            onClick={handleLaunchGame}
+            disabled={!isConnected}
+            className={`w-full py-4 px-6 rounded-lg flex items-center justify-center ${!isConnected ? 'bg-opacity-50 cursor-not-allowed' : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 transform hover:scale-105 transition-all'} text-white shadow-lg text-lg font-bold`}
+          >
+            <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            Lancer le jeu
+          </button>
+        </div>
+        
+        {/* 2. Barre pour la vitesse de la balle */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-white text-lg">Vitesse de la balle</label>
+            <span className="text-cyan-400 text-xl font-bold">{ballSpeed}</span>
+          </div>
+          <div className="bg-black bg-opacity-50 h-2 rounded-full">
+            <div 
+              className="bg-gradient-to-r from-cyan-400 to-blue-500 h-full rounded-full relative"
+              style={{ width: `${ballSpeed * 10}%` }}
+            >
+              <div className="absolute top-0 right-0 w-4 h-4 bg-white rounded-full shadow transform translate-x-1/2 -translate-y-1/4"></div>
+            </div>
+          </div>
           <input 
             type="range" 
             min="1" 
             max="10" 
             value={ballSpeed} 
             onChange={(e) => setBallSpeed(Number(e.target.value))} 
-            className="w-full"
+            className="w-full appearance-none opacity-0 absolute cursor-pointer"
+            style={{margin: 0, height: '8px', top: 'auto'}}
             disabled={!isConnected}
           />
-          <div className="flex justify-between text-gray-500 text-sm">
+          <div className="flex justify-between text-gray-400 text-xs mt-1">
             <span>Lent</span>
-            <span>Valeur: {ballSpeed}</span>
             <span>Rapide</span>
           </div>
         </div>
         
+        {/* 3. Barre pour la vitesse des raquettes */}
         <div className="mb-8">
-          <label className="block text-gray-700 mb-2">Vitesse de la raquette</label>
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-white text-lg">Vitesse des raquettes</label>
+            <span className="text-purple-400 text-xl font-bold">{paddleSpeed}</span>
+          </div>
+          <div className="bg-black bg-opacity-50 h-2 rounded-full">
+            <div 
+              className="bg-gradient-to-r from-purple-400 to-indigo-500 h-full rounded-full relative"
+              style={{ width: `${paddleSpeed * 10}%` }}
+            >
+              <div className="absolute top-0 right-0 w-4 h-4 bg-white rounded-full shadow transform translate-x-1/2 -translate-y-1/4"></div>
+            </div>
+          </div>
           <input 
             type="range" 
             min="1" 
             max="10" 
             value={paddleSpeed} 
             onChange={(e) => setPaddleSpeed(Number(e.target.value))} 
-            className="w-full"
+            className="w-full appearance-none opacity-0 absolute cursor-pointer"
+            style={{margin: 0, height: '8px', top: 'auto'}}
             disabled={!isConnected}
           />
-          <div className="flex justify-between text-gray-500 text-sm">
+          <div className="flex justify-between text-gray-400 text-xs mt-1">
             <span>Lent</span>
-            <span>Valeur: {paddleSpeed}</span>
             <span>Rapide</span>
           </div>
         </div>
         
-        <div className="flex space-x-4">
+        {/* 4. Bouton retour */}
+        <div>
           <button 
             onClick={backToConnection}
-            className="flex-1 py-2 px-4 bg-gray-500 hover:bg-gray-600 text-white rounded"
+            className="w-full py-3 px-6 rounded-lg bg-gray-700 hover:bg-gray-600 text-white flex items-center justify-center"
           >
+            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+            </svg>
             Retour
-          </button>
-          <button 
-            onClick={handleLaunchGame}
-            disabled={!isConnected}
-            className={`flex-1 py-2 px-4 rounded ${!isConnected ? 'bg-gray-300 cursor-not-allowed' : 'bg-green-500 hover:bg-green-600 text-white'}`}
-          >
-            Lancer le jeu
           </button>
         </div>
       </div>
