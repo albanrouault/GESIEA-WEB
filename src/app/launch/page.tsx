@@ -10,6 +10,7 @@ export default function LaunchPage() {
   const [ballSpeed, setBallSpeed] = useState(5);
   const [ballSize, setBallSize] = useState(5);
   const [paddleSize, setPaddleSize] = useState(5);
+  const [paddleSpeed, setPaddleSpeed] = useState(5);
   const [loading, setLoading] = useState(true);
   const { isConnected, sendCommand } = useSerial();
   
@@ -31,13 +32,14 @@ export default function LaunchPage() {
   const handleLaunchGame = async () => {
     try {
       // Envoi de la trame formatée au STM32 avec le nouveau format
-      await sendCommand(`game:play:${winPoints}:${ballSpeed}:${ballSize}:${paddleSize}`);
+      await sendCommand(`game:play:${winPoints}:${ballSpeed}:${ballSize}:${paddleSpeed}:${paddleSize}`);
       
       // Stocker les paramètres pour le jeu
       localStorage.setItem("winPoints", winPoints.toString());
       localStorage.setItem("ballSpeed", ballSpeed.toString());
       localStorage.setItem("ballSize", ballSize.toString());
       localStorage.setItem("paddleSize", paddleSize.toString());
+      localStorage.setItem("paddleSpeed", paddleSpeed.toString());
       
       // Naviguer vers la page de jeu
       router.push("/game");
@@ -185,7 +187,37 @@ export default function LaunchPage() {
           </div>
         </div>
         
-        {/* 5. Taille des raquettes */}
+        {/* 5. Vitesse des raquettes */}
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-white text-lg">Vitesse des raquettes</label>
+            <span className="text-rose-400 text-xl font-bold">{paddleSpeed}</span>
+          </div>
+          <div className="bg-black bg-opacity-50 h-2 rounded-full">
+            <div 
+              className="bg-gradient-to-r from-rose-400 to-pink-500 h-full rounded-full relative"
+              style={{ width: `${paddleSpeed * 10}%` }}
+            >
+              <div className="absolute top-0 right-0 w-4 h-4 bg-white rounded-full shadow transform translate-x-1/2 -translate-y-1/4"></div>
+            </div>
+          </div>
+          <input 
+            type="range" 
+            min="1" 
+            max="10" 
+            value={paddleSpeed} 
+            onChange={(e) => setPaddleSpeed(Number(e.target.value))} 
+            className="w-full appearance-none opacity-0 absolute cursor-pointer"
+            style={{margin: 0, height: '8px', top: 'auto'}}
+            disabled={!isConnected}
+          />
+          <div className="flex justify-between text-gray-400 text-xs mt-1">
+            <span>Lente</span>
+            <span>Rapide</span>
+          </div>
+        </div>
+        
+        {/* 6. Taille des raquettes */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-2">
             <label className="text-white text-lg">Taille des raquettes</label>
@@ -215,7 +247,7 @@ export default function LaunchPage() {
           </div>
         </div>
         
-        {/* 6. Bouton retour */}
+        {/* 7. Bouton retour */}
         <div>
           <button 
             onClick={backToConnection}
