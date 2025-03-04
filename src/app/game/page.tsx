@@ -37,7 +37,7 @@ export default function GamePage() {
   const [exchanges, setExchanges] = useState(0);
   const [gameTime, setGameTime] = useState("00:00");
   const [isPaused, setIsPaused] = useState(false);
-  const [gameStatus, setGameStatus] = useState(0); // 0: en attente, 1: en cours, 2: pause, 3: terminé
+  const [gameStatus, setGameStatus] = useState(0); // 0: neutre, 1: en cours, 2: pause, 3: terminé
   const [gameInitialized, setGameInitialized] = useState(false);
   
   // Variables de configuration du jeu
@@ -109,8 +109,8 @@ export default function GamePage() {
     // Mise à jour du statut
     setGameStatus(gameData.status);
     
-    // Si le jeu est terminé (status 0 avec des points), traiter la fin de jeu
-    if (gameData.status === 0 && gameData.player1Points !== undefined && gameData.player2Points !== undefined) {
+    // Si le jeu est terminé (status 3), traiter la fin de jeu
+    if (gameData.status === 3 && gameData.player1Points !== undefined && gameData.player2Points !== undefined) {
       // Déterminer le gagnant (celui qui a le plus de points)
       const winner = gameData.player1Points > gameData.player2Points ? "Joueur 1" : 
                     (gameData.player2Points > gameData.player1Points ? "Joueur 2" : "Match nul");
@@ -256,7 +256,7 @@ export default function GamePage() {
   };
 
   // Afficher un écran de chargement si le jeu n'est pas encore initialisé
-  if (!gameInitialized && isConnected && gameStatus !== 1) {
+  if (!gameInitialized && isConnected && gameStatus === 0) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 to-indigo-900 flex flex-col items-center justify-center">
         <div className="animate-pulse flex flex-col items-center">
