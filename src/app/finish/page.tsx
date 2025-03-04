@@ -31,6 +31,11 @@ export default function FinishPage() {
         duration: duration,
         finalScore: finalScore
       });
+
+      // Réinitialiser les données du jeu dans le localStorage
+      localStorage.removeItem("winner");
+      localStorage.removeItem("duration");
+      localStorage.removeItem("finalScore");
     }
   }, [router]);
   
