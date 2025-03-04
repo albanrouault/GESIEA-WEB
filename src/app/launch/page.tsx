@@ -29,7 +29,7 @@ export default function LaunchPage() {
   const handleLaunchGame = async () => {
     try {
       // Envoi de la trame formatée au STM32
-      await sendCommand(`game:play:${ballSpeed}:${paddleSize}`);
+      await sendCommand(`game:start:${ballSpeed}:${paddleSize}`);
       
       // Stocker les paramètres pour le jeu
       localStorage.setItem("ballSpeed", ballSpeed.toString());
