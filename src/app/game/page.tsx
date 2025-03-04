@@ -256,7 +256,7 @@ export default function GamePage() {
   };
 
   // Afficher un écran de chargement si le jeu n'est pas encore initialisé
-  if (!gameInitialized && isConnected) {
+  if (!gameInitialized && isConnected && gameStatus !== 1) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 to-indigo-900 flex flex-col items-center justify-center">
         <div className="animate-pulse flex flex-col items-center">
