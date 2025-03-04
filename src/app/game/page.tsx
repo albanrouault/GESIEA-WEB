@@ -1,25 +1,182 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useSerial } from "../contexts/SerialContext";
 
+// Types pour les données du jeu
+interface GameData {
+  status: number;
+  gridSize?: number;
+  ballSize?: number;
+  ballX: number;
+  ballY: number;
+  ballDx: number;
+  ballDy: number;
+  paddleLeft: number;
+  paddleLeftSize: number;
+  paddleRight: number;
+  paddleRightSize: number;
+}
+
 export default function GamePage() {
   const router = useRouter();
-  const { isConnected, sendCommand } = useSerial();
-  // États simulant les positions et scores
+  const { isConnected, sendCommand, receivedData } = useSerial();
+  
+  // États du jeu
   const [scoreLeft, setScoreLeft] = useState(0);
   const [scoreRight, setScoreRight] = useState(0);
   const [ballPosition, setBallPosition] = useState({ x: 50, y: 50 });
-  const [leftPaddle, setLeftPaddle] = useState({ y: 50 });
-  const [rightPaddle, setRightPaddle] = useState({ y: 50 });
+  const [leftPaddle, setLeftPaddle] = useState({ y: 50, size: 100 });
+  const [rightPaddle, setRightPaddle] = useState({ y: 50, size: 100 });
   const [exchanges, setExchanges] = useState(0);
   const [gameTime, setGameTime] = useState("00:00");
   const [isPaused, setIsPaused] = useState(false);
+  const [gameStatus, setGameStatus] = useState(0); // 0: en attente, 1: en cours, 2: pause, 3: terminé
+  const [gameInitialized, setGameInitialized] = useState(false);
   
-  // Utiliser useRef pour stocker la valeur de startTime qui ne provoque pas de re-render
+  // Variables de configuration du jeu
+  const [gridSize, setGridSize] = useState(100);
+  const [ballSize, setBallSize] = useState(2);
+  
+  // Référence pour le temps de départ
   const startTimeRef = useRef(Date.now());
+  // Référence pour stocker les dernières données reçues
+  const lastReceivedDataRef = useRef("");
 
+  // Fonction pour parser les données de jeu
+  const parseGameData = useCallback((dataStr: string): GameData | null => {
+    try {
+      if (dataStr.startsWith("game:all:")) {
+        // Format: game:all:status,grid_size,ball_size,ball_x,ball_y,ball_dx,ball_dy,paddle_left,paddle_left_size,paddle_right,paddle_right_size
+        const paramsStr = dataStr.substring("game:all:".length);
+        const params = paramsStr.split(",").map(Number);
+        
+        if (params.length >= 11) {
+          return {
+            status: params[0],
+            gridSize: params[1],
+            ballSize: params[2],
+            ballX: params[3],
+            ballY: params[4],
+            ballDx: params[5],
+            ballDy: params[6],
+            paddleLeft: params[7],
+            paddleLeftSize: params[8],
+            paddleRight: params[9],
+            paddleRightSize: params[10]
+          };
+        }
+      } else if (dataStr.startsWith("game:run:")) {
+        // Format: game:run:status,ball_x,ball_y,ball_dx,ball_dy,paddle_left,paddle_left_size,paddle_right,paddle_right_size
+        const paramsStr = dataStr.substring("game:run:".length);
+        const params = paramsStr.split(",").map(Number);
+        
+        if (params.length >= 9) {
+          return {
+            status: params[0],
+            ballX: params[1],
+            ballY: params[2],
+            ballDx: params[3],
+            ballDy: params[4],
+            paddleLeft: params[5],
+            paddleLeftSize: params[6],
+            paddleRight: params[7],
+            paddleRightSize: params[8]
+          };
+        }
+      }
+    } catch (error) {
+      console.error("Erreur de parsing des données:", error);
+    }
+    return null;
+  }, []);
+
+  // Fonction pour mettre à jour l'interface avec les données du jeu
+  const updateGameInterface = useCallback((gameData: GameData) => {
+    // Mise à jour du statut
+    setGameStatus(gameData.status);
+    
+    // Si le jeu est terminé (status 3), traiter la fin de jeu
+    if (gameData.status === 3) {
+      // Déterminer le gagnant (celui qui a le plus de points)
+      const winner = scoreLeft > scoreRight ? "Joueur 1" : (scoreRight > scoreLeft ? "Joueur 2" : "Match nul");
+      endGame(winner);
+      return;
+    }
+    
+    // Mise à jour de isPaused basé sur le statut
+    setIsPaused(gameData.status === 2);
+    
+    // Initialisation ou mise à jour des données de jeu
+    if (gameData.gridSize !== undefined && gameData.ballSize !== undefined) {
+      // C'est une initialisation (game:all)
+      setGridSize(gameData.gridSize);
+      setBallSize(gameData.ballSize);
+      setGameInitialized(true);
+    }
+    
+    // Calcul des positions relatives en pourcentage pour l'affichage
+    const ballXPercent = (gameData.ballX / gridSize) * 100;
+    const ballYPercent = (gameData.ballY / gridSize) * 100;
+    
+    // Mise à jour de la position de la balle
+    setBallPosition({
+      x: ballXPercent,
+      y: ballYPercent
+    });
+    
+    // Mise à jour de la position et taille des raquettes
+    // La position en Y est en valeur absolue (0-100), la taille aussi
+    setLeftPaddle({
+      y: (gameData.paddleLeft / gridSize) * 100,
+      size: gameData.paddleLeftSize
+    });
+    
+    setRightPaddle({
+      y: (gameData.paddleRight / gridSize) * 100,
+      size: gameData.paddleRightSize
+    });
+    
+    // Vérifier si un point a été marqué (quand la balle revient au centre)
+    if (Math.abs(ballXPercent - 50) < 2 && Math.abs(ballYPercent - 50) < 2) {
+      // Augmenter le nombre d'échanges
+      setExchanges(prev => prev + 1);
+      
+      // Déterminer qui a marqué le point en fonction de la direction de la balle
+      if (gameData.ballDx < 0) {
+        // La balle va vers la gauche, donc le joueur de droite a marqué
+        setScoreRight(prev => prev + 1);
+      } else if (gameData.ballDx > 0) {
+        // La balle va vers la droite, donc le joueur de gauche a marqué
+        setScoreLeft(prev => prev + 1);
+      }
+    }
+  }, [gridSize, scoreLeft, scoreRight]);
+
+  // Écouter les données reçues du port série
+  useEffect(() => {
+    if (!receivedData || receivedData === lastReceivedDataRef.current) return;
+    
+    // Mettre à jour la référence
+    lastReceivedDataRef.current = receivedData;
+    
+    // Traiter chaque ligne des données reçues
+    const lines = receivedData.split("\r\n").filter(line => line.trim() !== "");
+    
+    // Prendre la dernière ligne qui correspond à un message de jeu
+    const gameLines = lines.filter(line => line.startsWith("game:"));
+    if (gameLines.length > 0) {
+      const lastGameLine = gameLines[gameLines.length - 1];
+      const gameData = parseGameData(lastGameLine);
+      
+      if (gameData) {
+        updateGameInterface(gameData);
+      }
+    }
+  }, [receivedData, parseGameData, updateGameInterface]);
+
+  // Vérifier la connexion et initialiser le jeu
   useEffect(() => {
     // Vérifier si l'utilisateur est connecté
     if (!isConnected) {
@@ -27,12 +184,12 @@ export default function GamePage() {
       return;
     }
 
-    // Initialiser le jeu au premier rendu seulement (pas à chaque mise à jour)
-    // startTimeRef est déjà initialisé en dehors du useEffect
+    // Initialiser le temps de départ
+    startTimeRef.current = Date.now();
     
     // Timer pour mettre à jour le temps de jeu
     const timer = setInterval(() => {
-      if (!isPaused) {
+      if (!isPaused && gameStatus === 1) { // seulement si en cours de jeu
         const currentTime = Date.now();
         const durationMs = currentTime - startTimeRef.current;
         const minutes = Math.floor(durationMs / 60000);
@@ -41,17 +198,10 @@ export default function GamePage() {
       }
     }, 1000);
     
-    // Cette fonction simule la fin du jeu après un délai
-    // Dans une implémentation réelle, ce serait basé sur les données reçues du STM32
-    const gameTimer = setTimeout(() => {
-      endGame("Joueur 1");
-    }, 30000); // Fin du jeu après 30 secondes (à remplacer par logique réelle)
-    
     return () => {
       clearInterval(timer);
-      clearTimeout(gameTimer);
     };
-  }, [isConnected, router, isPaused]); // Retiré startTime des dépendances
+  }, [isConnected, router, isPaused, gameStatus]);
 
   // Fonction pour terminer le jeu et naviguer vers la page de fin
   const endGame = (winner: string) => {
@@ -70,7 +220,7 @@ export default function GamePage() {
     
     // Envoyer la commande de fin de jeu au STM32
     if (isConnected) {
-      sendCommand("END_GAME");
+      sendCommand("game:stop");
     }
     
     // Naviguer vers la page de fin
@@ -79,18 +229,32 @@ export default function GamePage() {
 
   // Fonction pour mettre le jeu en pause
   const togglePause = () => {
+    const newPausedState = !isPaused;
+    setIsPaused(newPausedState);
+    
     // En cas de reprise du jeu, on ajuste le temps de référence pour tenir compte de la pause
-    if (isPaused) {
+    if (!newPausedState) {
       // Ajuste startTimeRef pour qu'il prenne en compte le temps de pause
       const pauseOffset = Date.now() - startTimeRef.current;
       startTimeRef.current = Date.now() - pauseOffset;
     }
     
-    setIsPaused(!isPaused);
     if (isConnected) {
-      sendCommand(isPaused ? "RESUME_GAME" : "PAUSE_GAME");
+      sendCommand(newPausedState ? "game:pause" : "game:resume");
     }
   };
+
+  // Afficher un écran de chargement si le jeu n'est pas encore initialisé
+  if (!gameInitialized && isConnected) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 to-indigo-900 flex flex-col items-center justify-center">
+        <div className="animate-pulse flex flex-col items-center">
+          <div className="w-16 h-16 bg-cyan-500 rounded-full mb-4 shadow-[0_0_15px_rgba(6,182,212,0.7)]"></div>
+          <p className="text-white text-xl">Initialisation du jeu...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative min-h-screen bg-gradient-to-br from-gray-900 to-indigo-900 overflow-hidden flex flex-col justify-center items-center">
@@ -140,8 +304,8 @@ export default function GamePage() {
         <div
           className="absolute bg-white rounded-full shadow-[0_0_15px_rgba(255,255,255,0.8)] animate-pulse"
           style={{
-            width: "20px",
-            height: "20px",
+            width: `${ballSize * 2}px`,
+            height: `${ballSize * 2}px`,
             left: `${ballPosition.x}%`,
             top: `${ballPosition.y}%`,
             transform: "translate(-50%, -50%)",
@@ -153,7 +317,7 @@ export default function GamePage() {
           className="absolute bg-gradient-to-b from-blue-400 to-cyan-600 rounded shadow-[0_0_10px_rgba(6,182,212,0.7)]"
           style={{
             width: "12px",
-            height: "100px",
+            height: `${leftPaddle.size}px`,
             left: "20px",
             top: `${leftPaddle.y}%`,
             transform: "translateY(-50%)",
@@ -165,7 +329,7 @@ export default function GamePage() {
           className="absolute bg-gradient-to-b from-rose-400 to-pink-600 rounded shadow-[0_0_10px_rgba(244,114,182,0.7)]"
           style={{
             width: "12px",
-            height: "100px",
+            height: `${rightPaddle.size}px`,
             right: "20px",
             top: `${rightPaddle.y}%`,
             transform: "translateY(-50%)",
