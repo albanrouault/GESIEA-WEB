@@ -56,8 +56,8 @@ export default function LaunchPage() {
       const { width, height } = calculateTerrainDimensions();
       
       // Envoi de la trame formatée au STM32 avec le nouveau format
-      // Format: game:play:largeurTerrain:hauteurTerrain:pointsGagnants:vitesseBalle:tailleBalle:vitesseRaquette:tailleRaquette
-      await sendCommand(`game:play:${width}:${height}:${winPoints}:${ballSpeed}:${ballSize}:${paddleSpeed}:${paddleSize}`);
+      // Format: game:start:largeurTerrain:hauteurTerrain:pointsGagnants:vitesseBalle:tailleBalle:vitesseRaquette:tailleRaquette
+      await sendCommand(`game:start:${width}:${height}:${winPoints}:${ballSpeed}:${ballSize}:${paddleSpeed}:${paddleSize}`);
       
       // Stocker les paramètres pour le jeu
       localStorage.setItem("winPoints", winPoints.toString());
