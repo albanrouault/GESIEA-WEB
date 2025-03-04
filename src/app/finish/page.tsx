@@ -2,6 +2,8 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSerial } from "../contexts/SerialContext";
+import DebugConsole from "@/components/DebugConsole";
 
 export default function FinishPage() {
   const router = useRouter();
@@ -154,6 +156,9 @@ export default function FinishPage() {
           }
         }
       `}</style>
+      
+      {/* Ajout de la console de débogage */}
+      <DebugConsole />
     </div>
   );
 } 

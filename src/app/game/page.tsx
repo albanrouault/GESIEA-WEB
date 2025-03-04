@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useSerial } from "../contexts/SerialContext";
+import DebugConsole from "@/components/DebugConsole";
 
 // Types pour les données du jeu
 interface GameData {
@@ -262,6 +263,7 @@ export default function GamePage() {
           <div className="w-16 h-16 bg-cyan-500 rounded-full mb-4 shadow-[0_0_15px_rgba(6,182,212,0.7)]"></div>
           <p className="text-white text-xl">Initialisation du jeu...</p>
         </div>
+        <DebugConsole />
       </div>
     );
   }
@@ -411,6 +413,9 @@ export default function GamePage() {
           }
         }
       `}</style>
+      
+      {/* Ajout de la console de débogage */}
+      <DebugConsole />
     </div>
   );
 } 

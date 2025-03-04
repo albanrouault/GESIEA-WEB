@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSerial } from "../contexts/SerialContext";
+import DebugConsole from "@/components/DebugConsole";
 
 export default function LaunchPage() {
   const router = useRouter();
@@ -86,7 +87,7 @@ export default function LaunchPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-blue-800 to-purple-900 flex flex-col items-center justify-center p-6">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-indigo-900 flex flex-col items-center justify-center p-4">
       <div className="max-w-md w-full bg-black bg-opacity-30 backdrop-blur-md rounded-2xl shadow-2xl p-8 border border-white border-opacity-10">
         <h1 className="text-3xl font-bold text-center mb-8 bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-300">
           Configuration du jeu
@@ -284,6 +285,9 @@ export default function LaunchPage() {
           </button>
         </div>
       </div>
+      
+      {/* Ajout de la console de débogage */}
+      <DebugConsole />
     </div>
   );
 } 
