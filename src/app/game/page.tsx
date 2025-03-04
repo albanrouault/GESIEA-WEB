@@ -77,7 +77,7 @@ export default function GamePage() {
           };
         }
       } else if (dataStr.startsWith("game:run:")) {
-        // Format: game:run:status,x,y,dx,dy,left,leftsize,right,rightsize,ballsize,p1points,p2points,maxpoints
+        // Format: game:run:status,x,y,dx,dy,ballsize,left,leftsize,right,rightsize,p1points,p2points
         const paramsStr = dataStr.substring("game:run:".length);
         const params = paramsStr.split(",").map(Number);
         
@@ -88,11 +88,11 @@ export default function GamePage() {
             ballY: params[2],
             ballDx: params[3],
             ballDy: params[4],
-            paddleLeft: params[5],
-            paddleLeftSize: params[6],
-            paddleRight: params[7],
-            paddleRightSize: params[8],
-            ballSize: params[9],
+            ballSize: params[5],
+            paddleLeft: params[6],
+            paddleLeftSize: params[7],
+            paddleRight: params[8],
+            paddleRightSize: params[9],
             player1Points: params[10],
             player2Points: params[11]
           };
