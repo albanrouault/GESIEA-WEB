@@ -6,7 +6,9 @@ import { useSerial } from "../contexts/SerialContext";
 
 export default function LaunchPage() {
   const router = useRouter();
+  const [winPoints, setWinPoints] = useState(5);
   const [ballSpeed, setBallSpeed] = useState(5);
+  const [ballSize, setBallSize] = useState(5);
   const [paddleSize, setPaddleSize] = useState(5);
   const [loading, setLoading] = useState(true);
   const { isConnected, sendCommand } = useSerial();
@@ -28,11 +30,13 @@ export default function LaunchPage() {
   // Démarrage du jeu
   const handleLaunchGame = async () => {
     try {
-      // Envoi de la trame formatée au STM32
-      await sendCommand(`game:start:${ballSpeed}:${paddleSize}`);
+      // Envoi de la trame formatée au STM32 avec le nouveau format
+      await sendCommand(`game:play:${winPoints}:${ballSpeed}:${ballSize}:${paddleSize}`);
       
       // Stocker les paramètres pour le jeu
+      localStorage.setItem("winPoints", winPoints.toString());
       localStorage.setItem("ballSpeed", ballSpeed.toString());
+      localStorage.setItem("ballSize", ballSize.toString());
       localStorage.setItem("paddleSize", paddleSize.toString());
       
       // Naviguer vers la page de jeu
@@ -91,7 +95,37 @@ export default function LaunchPage() {
           </button>
         </div>
         
-        {/* 2. Barre pour la vitesse de la balle */}
+        {/* 2. Points gagnants (nouveau curseur) */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-white text-lg">Points gagnants</label>
+            <span className="text-amber-400 text-xl font-bold">{winPoints}</span>
+          </div>
+          <div className="bg-black bg-opacity-50 h-2 rounded-full">
+            <div 
+              className="bg-gradient-to-r from-amber-400 to-orange-500 h-full rounded-full relative"
+              style={{ width: `${winPoints * 10}%` }}
+            >
+              <div className="absolute top-0 right-0 w-4 h-4 bg-white rounded-full shadow transform translate-x-1/2 -translate-y-1/4"></div>
+            </div>
+          </div>
+          <input 
+            type="range" 
+            min="1" 
+            max="10" 
+            value={winPoints} 
+            onChange={(e) => setWinPoints(Number(e.target.value))} 
+            className="w-full appearance-none opacity-0 absolute cursor-pointer"
+            style={{margin: 0, height: '8px', top: 'auto'}}
+            disabled={!isConnected}
+          />
+          <div className="flex justify-between text-gray-400 text-xs mt-1">
+            <span>1 point</span>
+            <span>10 points</span>
+          </div>
+        </div>
+        
+        {/* 3. Vitesse de la balle (ordre modifié) */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-2">
             <label className="text-white text-lg">Vitesse de la balle</label>
@@ -121,7 +155,37 @@ export default function LaunchPage() {
           </div>
         </div>
         
-        {/* 3. Barre pour la taille des raquettes */}
+        {/* 4. Taille de la balle (nouveau curseur) */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-white text-lg">Taille de la balle</label>
+            <span className="text-green-400 text-xl font-bold">{ballSize}</span>
+          </div>
+          <div className="bg-black bg-opacity-50 h-2 rounded-full">
+            <div 
+              className="bg-gradient-to-r from-green-400 to-teal-500 h-full rounded-full relative"
+              style={{ width: `${ballSize * 10}%` }}
+            >
+              <div className="absolute top-0 right-0 w-4 h-4 bg-white rounded-full shadow transform translate-x-1/2 -translate-y-1/4"></div>
+            </div>
+          </div>
+          <input 
+            type="range" 
+            min="1" 
+            max="10" 
+            value={ballSize} 
+            onChange={(e) => setBallSize(Number(e.target.value))} 
+            className="w-full appearance-none opacity-0 absolute cursor-pointer"
+            style={{margin: 0, height: '8px', top: 'auto'}}
+            disabled={!isConnected}
+          />
+          <div className="flex justify-between text-gray-400 text-xs mt-1">
+            <span>Petite</span>
+            <span>Grande</span>
+          </div>
+        </div>
+        
+        {/* 5. Taille des raquettes */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-2">
             <label className="text-white text-lg">Taille des raquettes</label>
@@ -151,7 +215,7 @@ export default function LaunchPage() {
           </div>
         </div>
         
-        {/* 4. Bouton retour */}
+        {/* 6. Bouton retour */}
         <div>
           <button 
             onClick={backToConnection}
