@@ -7,7 +7,8 @@ import { useSerial } from "../contexts/SerialContext";
 // Types pour les données du jeu
 interface GameData {
   status: number;
-  gridSize?: number;
+  gridWidth?: number;
+  gridHeight?: number;
   ballSize?: number;
   ballX: number;
   ballY: number;
@@ -17,6 +18,9 @@ interface GameData {
   paddleLeftSize: number;
   paddleRight: number;
   paddleRightSize: number;
+  maxPoints?: number;
+  player1Points?: number;
+  player2Points?: number;
 }
 
 export default function GamePage() {
@@ -48,31 +52,35 @@ export default function GamePage() {
   const parseGameData = useCallback((dataStr: string): GameData | null => {
     try {
       if (dataStr.startsWith("game:all:")) {
-        // Format: game:all:status,grid_size,ball_size,ball_x,ball_y,ball_dx,ball_dy,paddle_left,paddle_left_size,paddle_right,paddle_right_size
+        // Format: game:all:status,grid_width,grid_height,ball_size,ball_x,ball_y,ball_dx,ball_dy,paddle_left,paddle_left_size,paddle_right,paddle_right_size,max_points,player1_points,player2_points
         const paramsStr = dataStr.substring("game:all:".length);
         const params = paramsStr.split(",").map(Number);
         
-        if (params.length >= 11) {
+        if (params.length >= 15) {
           return {
             status: params[0],
-            gridSize: params[1],
-            ballSize: params[2],
-            ballX: params[3],
-            ballY: params[4],
-            ballDx: params[5],
-            ballDy: params[6],
-            paddleLeft: params[7],
-            paddleLeftSize: params[8],
-            paddleRight: params[9],
-            paddleRightSize: params[10]
+            gridWidth: params[1],
+            gridHeight: params[2],
+            ballSize: params[3],
+            ballX: params[4],
+            ballY: params[5],
+            ballDx: params[6],
+            ballDy: params[7],
+            paddleLeft: params[8],
+            paddleLeftSize: params[9],
+            paddleRight: params[10],
+            paddleRightSize: params[11],
+            maxPoints: params[12],
+            player1Points: params[13],
+            player2Points: params[14]
           };
         }
       } else if (dataStr.startsWith("game:run:")) {
-        // Format: game:run:status,ball_x,ball_y,ball_dx,ball_dy,paddle_left,paddle_left_size,paddle_right,paddle_right_size
+        // Format: game:run:status,x,y,dx,dy,left,leftsize,right,rightsize,ballsize,p1points,p2points,maxpoints
         const paramsStr = dataStr.substring("game:run:".length);
         const params = paramsStr.split(",").map(Number);
         
-        if (params.length >= 9) {
+        if (params.length >= 12) {
           return {
             status: params[0],
             ballX: params[1],
@@ -82,7 +90,10 @@ export default function GamePage() {
             paddleLeft: params[5],
             paddleLeftSize: params[6],
             paddleRight: params[7],
-            paddleRightSize: params[8]
+            paddleRightSize: params[8],
+            ballSize: params[9],
+            player1Points: params[10],
+            player2Points: params[11]
           };
         }
       }
@@ -100,7 +111,8 @@ export default function GamePage() {
     // Si le jeu est terminé (status 3), traiter la fin de jeu
     if (gameData.status === 3) {
       // Déterminer le gagnant (celui qui a le plus de points)
-      const winner = scoreLeft > scoreRight ? "Joueur 1" : (scoreRight > scoreLeft ? "Joueur 2" : "Match nul");
+      const winner = gameData.player1Points! > gameData.player2Points! ? "Joueur 1" : 
+                    (gameData.player2Points! > gameData.player1Points! ? "Joueur 2" : "Match nul");
       endGame(winner);
       return;
     }
@@ -109,11 +121,19 @@ export default function GamePage() {
     setIsPaused(gameData.status === 2);
     
     // Initialisation ou mise à jour des données de jeu
-    if (gameData.gridSize !== undefined && gameData.ballSize !== undefined) {
+    if (gameData.gridWidth !== undefined && gameData.gridHeight !== undefined && gameData.ballSize !== undefined) {
       // C'est une initialisation (game:all)
-      setGridSize(gameData.gridSize);
+      setGridSize(Math.max(gameData.gridWidth, gameData.gridHeight));
       setBallSize(gameData.ballSize);
       setGameInitialized(true);
+    }
+    
+    // Mise à jour des scores si disponibles
+    if (gameData.player1Points !== undefined) {
+      setScoreLeft(gameData.player1Points);
+    }
+    if (gameData.player2Points !== undefined) {
+      setScoreRight(gameData.player2Points);
     }
     
     // Calcul des positions relatives en pourcentage pour l'affichage
@@ -127,7 +147,6 @@ export default function GamePage() {
     });
     
     // Mise à jour de la position et taille des raquettes
-    // La position en Y est en valeur absolue (0-100), la taille aussi
     setLeftPaddle({
       y: (gameData.paddleLeft / gridSize) * 100,
       size: gameData.paddleLeftSize
@@ -142,17 +161,8 @@ export default function GamePage() {
     if (Math.abs(ballXPercent - 50) < 2 && Math.abs(ballYPercent - 50) < 2) {
       // Augmenter le nombre d'échanges
       setExchanges(prev => prev + 1);
-      
-      // Déterminer qui a marqué le point en fonction de la direction de la balle
-      if (gameData.ballDx < 0) {
-        // La balle va vers la gauche, donc le joueur de droite a marqué
-        setScoreRight(prev => prev + 1);
-      } else if (gameData.ballDx > 0) {
-        // La balle va vers la droite, donc le joueur de gauche a marqué
-        setScoreLeft(prev => prev + 1);
-      }
     }
-  }, [gridSize, scoreLeft, scoreRight]);
+  }, [gridSize]);
 
   // Écouter les données reçues du port série
   useEffect(() => {
