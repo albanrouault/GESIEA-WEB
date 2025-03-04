@@ -37,7 +37,7 @@ export default function GamePage() {
   const [exchanges, setExchanges] = useState(0);
   const [gameTime, setGameTime] = useState("00:00");
   const [isPaused, setIsPaused] = useState(false);
-  const [gameStatus, setGameStatus] = useState(0); // 0: neutre, 1: en cours, 2: pause, 3: terminé
+  const [gameStatus, setGameStatus] = useState(0); // 0: initial, 1: en cours, 2: pause, 3: fin de partie
   const [gameInitialized, setGameInitialized] = useState(false);
   
   // Variables de configuration du jeu
@@ -109,12 +109,15 @@ export default function GamePage() {
     // Mise à jour du statut
     setGameStatus(gameData.status);
     
-    // Si le jeu est terminé (status 3), traiter la fin de jeu
-    if (gameData.status === 3 && gameData.player1Points !== undefined && gameData.player2Points !== undefined) {
-      // Déterminer le gagnant (celui qui a le plus de points)
-      const winner = gameData.player1Points > gameData.player2Points ? "Joueur 1" : 
-                    (gameData.player2Points > gameData.player1Points ? "Joueur 2" : "Match nul");
-      endGame(winner);
+    // Si le jeu est terminé (status 3), traiter la fin de partie
+    if (gameData.status === 3) {
+      // Vérifier que les points sont disponibles
+      if (gameData.player1Points !== undefined && gameData.player2Points !== undefined) {
+        // Déterminer le gagnant (celui qui a le plus de points)
+        const winner = gameData.player1Points > gameData.player2Points ? "Joueur 1" : 
+                      (gameData.player2Points > gameData.player1Points ? "Joueur 2" : "Match nul");
+        endGame(winner);
+      }
       return;
     }
     
@@ -200,7 +203,7 @@ export default function GamePage() {
     
     // Timer pour mettre à jour le temps de jeu
     const timer = setInterval(() => {
-      if (!isPaused && gameStatus === 1) { // seulement si en cours de jeu
+      if (!isPaused && gameStatus === 1) { // seulement si en cours de jeu (status 1)
         const currentTime = Date.now();
         const durationMs = currentTime - startTimeRef.current;
         const minutes = Math.floor(durationMs / 60000);
