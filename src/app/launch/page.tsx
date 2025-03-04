@@ -7,7 +7,7 @@ import { useSerial } from "../contexts/SerialContext";
 export default function LaunchPage() {
   const router = useRouter();
   const [ballSpeed, setBallSpeed] = useState(5);
-  const [paddleSpeed, setPaddleSpeed] = useState(5);
+  const [paddleSize, setPaddleSize] = useState(5);
   const [loading, setLoading] = useState(true);
   const { isConnected, sendCommand } = useSerial();
   
@@ -28,14 +28,12 @@ export default function LaunchPage() {
   // Démarrage du jeu
   const handleLaunchGame = async () => {
     try {
-      // Envoi des paramètres à l'appareil STM32
-      await sendCommand(`SET_BALL_SPEED:${ballSpeed}`);
-      await sendCommand(`SET_PADDLE_SPEED:${paddleSpeed}`);
-      await sendCommand("START_GAME");
+      // Envoi de la trame formatée au STM32
+      await sendCommand(`game:play:${ballSpeed}:${paddleSize}`);
       
       // Stocker les paramètres pour le jeu
       localStorage.setItem("ballSpeed", ballSpeed.toString());
-      localStorage.setItem("paddleSpeed", paddleSpeed.toString());
+      localStorage.setItem("paddleSize", paddleSize.toString());
       
       // Naviguer vers la page de jeu
       router.push("/game");
@@ -127,12 +125,12 @@ export default function LaunchPage() {
         <div className="mb-8">
           <div className="flex items-center justify-between mb-2">
             <label className="text-white text-lg">Taille des raquettes</label>
-            <span className="text-purple-400 text-xl font-bold">{paddleSpeed}</span>
+            <span className="text-purple-400 text-xl font-bold">{paddleSize}</span>
           </div>
           <div className="bg-black bg-opacity-50 h-2 rounded-full">
             <div 
               className="bg-gradient-to-r from-purple-400 to-indigo-500 h-full rounded-full relative"
-              style={{ width: `${paddleSpeed * 10}%` }}
+              style={{ width: `${paddleSize * 10}%` }}
             >
               <div className="absolute top-0 right-0 w-4 h-4 bg-white rounded-full shadow transform translate-x-1/2 -translate-y-1/4"></div>
             </div>
@@ -141,8 +139,8 @@ export default function LaunchPage() {
             type="range" 
             min="1" 
             max="10" 
-            value={paddleSpeed} 
-            onChange={(e) => setPaddleSpeed(Number(e.target.value))} 
+            value={paddleSize} 
+            onChange={(e) => setPaddleSize(Number(e.target.value))} 
             className="w-full appearance-none opacity-0 absolute cursor-pointer"
             style={{margin: 0, height: '8px', top: 'auto'}}
             disabled={!isConnected}
