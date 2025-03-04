@@ -123,10 +123,10 @@ export default function LaunchPage() {
           </div>
         </div>
         
-        {/* 3. Barre pour la vitesse des raquettes */}
+        {/* 3. Barre pour la taille des raquettes */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-2">
-            <label className="text-white text-lg">Vitesse des raquettes</label>
+            <label className="text-white text-lg">Taille des raquettes</label>
             <span className="text-purple-400 text-xl font-bold">{paddleSpeed}</span>
           </div>
           <div className="bg-black bg-opacity-50 h-2 rounded-full">
@@ -148,8 +148,8 @@ export default function LaunchPage() {
             disabled={!isConnected}
           />
           <div className="flex justify-between text-gray-400 text-xs mt-1">
-            <span>Lent</span>
-            <span>Rapide</span>
+            <span>Petite</span>
+            <span>Grande</span>
           </div>
         </div>
         
