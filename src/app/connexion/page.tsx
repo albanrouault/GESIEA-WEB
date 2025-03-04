@@ -86,9 +86,9 @@ export default function ConnexionPage() {
           <button 
             onClick={handleConnect}
             disabled={isConnected}
-            className={`${isConnected ? 'bg-opacity-50 cursor-not-allowed' : 'hover:bg-blue-600 hover:scale-105 transform transition'} bg-blue-700 py-3 px-4 rounded-lg shadow-lg flex items-center justify-center`}
+            className={`${isConnected ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-blue-700 hover:bg-blue-600 hover:scale-105 transform transition'} py-3 px-4 rounded-lg shadow-lg flex items-center justify-center`}
           >
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <svg className={`w-5 h-5 mr-2 ${isConnected ? 'text-gray-400' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
             </svg>
             Connecter
@@ -97,9 +97,9 @@ export default function ConnexionPage() {
           <button 
             onClick={handleDisconnect}
             disabled={!isConnected}
-            className={`${!isConnected ? 'bg-opacity-50 cursor-not-allowed' : 'hover:bg-rose-600 hover:scale-105 transform transition'} bg-rose-700 py-3 px-4 rounded-lg shadow-lg flex items-center justify-center`}
+            className={`${!isConnected ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-rose-700 hover:bg-rose-600 hover:scale-105 transform transition'} py-3 px-4 rounded-lg shadow-lg flex items-center justify-center`}
           >
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <svg className={`w-5 h-5 mr-2 ${!isConnected ? 'text-gray-400' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
             </svg>
             Déconnecter
@@ -142,15 +142,15 @@ export default function ConnexionPage() {
           </div>
         </div>
         
-        <div className="border border-indigo-800 rounded-lg shadow-inner bg-black bg-opacity-70 p-4 h-72 overflow-auto font-mono text-sm relative">
-          <div className="absolute top-0 left-0 w-full py-2 px-4 bg-indigo-900 bg-opacity-70 flex items-center rounded-t-lg">
+        <div className="border border-indigo-800 rounded-lg shadow-inner bg-black bg-opacity-70 h-72 relative">
+          <div className="sticky top-0 left-0 w-full py-2 px-4 bg-indigo-900 bg-opacity-90 flex items-center rounded-t-lg z-10 border-b border-indigo-800">
             <div className="w-3 h-3 rounded-full bg-red-500 mr-2"></div>
             <div className="w-3 h-3 rounded-full bg-yellow-500 mr-2"></div>
             <div className="w-3 h-3 rounded-full bg-green-500 mr-2"></div>
             <span className="text-xs text-gray-300">Serial Monitor</span>
           </div>
-          <div className="pt-8 pb-2 px-2">
-            <pre className="whitespace-pre-wrap text-cyan-400">
+          <div className="console-container h-[calc(100%-36px)] overflow-y-auto px-2 py-2 custom-scrollbar">
+            <pre className="whitespace-pre-wrap text-cyan-400 font-mono text-sm">
               {receivedData || "// En attente de données..."}
             </pre>
           </div>
@@ -193,6 +193,27 @@ export default function ConnexionPage() {
           </ul>
         </div>
       )}
+      
+      {/* Style pour la barre de défilement personnalisée */}
+      <style jsx>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 8px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: rgba(0, 0, 0, 0.3);
+          border-radius: 4px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(99, 102, 241, 0.5);
+          border-radius: 4px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(99, 102, 241, 0.8);
+        }
+      `}</style>
     </div>
   );
 } 
