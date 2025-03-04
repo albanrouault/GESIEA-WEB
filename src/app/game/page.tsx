@@ -2,9 +2,9 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useSerial } from "./contexts/SerialContext";
+import { useSerial } from "../contexts/SerialContext";
 
-const GamePage = () => {
+export default function GamePage() {
   const router = useRouter();
   const { isConnected, sendCommand } = useSerial();
   // États simulant les positions et scores
@@ -19,7 +19,7 @@ const GamePage = () => {
   useEffect(() => {
     // Vérifier si l'utilisateur est connecté
     if (!isConnected) {
-      router.push("/connexionPage");
+      router.push("/connexion");
       return;
     }
 
@@ -56,7 +56,7 @@ const GamePage = () => {
     }
     
     // Naviguer vers la page de fin
-    router.push("/finishPage");
+    router.push("/finish");
   };
 
   return (
@@ -82,11 +82,11 @@ const GamePage = () => {
 
       {/* Raquette gauche */}
       <div
-        className="absolute bg-white"
+        className="absolute bg-white rounded"
         style={{
           width: "10px",
-          height: "100px",
-          left: "10%",
+          height: "80px",
+          left: "20px",
           top: `${leftPaddle.y}%`,
           transform: "translateY(-50%)",
         }}
@@ -94,17 +94,15 @@ const GamePage = () => {
 
       {/* Raquette droite */}
       <div
-        className="absolute bg-white"
+        className="absolute bg-white rounded"
         style={{
           width: "10px",
-          height: "100px",
-          right: "10%",
+          height: "80px",
+          right: "20px",
           top: `${rightPaddle.y}%`,
           transform: "translateY(-50%)",
         }}
       ></div>
     </div>
   );
-};
-
-export default GamePage;
+} 

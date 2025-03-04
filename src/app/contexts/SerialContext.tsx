@@ -11,6 +11,7 @@ type SerialContextType = {
   log: string;
   errorMessage: string;
   baudRate: number;
+  receivedData: string;
   setBaudRate: (rate: number) => void;
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;
@@ -27,6 +28,7 @@ const defaultContext: SerialContextType = {
   log: "",
   errorMessage: "",
   baudRate: 115200,
+  receivedData: "",
   setBaudRate: () => {},
   connect: async () => {},
   disconnect: async () => {},
@@ -54,6 +56,7 @@ export const SerialProvider = ({ children }: SerialProviderProps) => {
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [log, setLog] = useState("");
+  const [receivedData, setReceivedData] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [baudRate, setBaudRate] = useState(115200);
 
@@ -95,6 +98,7 @@ export const SerialProvider = ({ children }: SerialProviderProps) => {
         }
         if (value) {
           setLog(prev => prev + value);
+          setReceivedData(prev => prev + value);
         }
       } catch (error) {
         console.error("Erreur lors de la lecture du port:", error);
@@ -227,6 +231,7 @@ export const SerialProvider = ({ children }: SerialProviderProps) => {
     log,
     errorMessage,
     baudRate,
+    receivedData,
     setBaudRate,
     connect,
     disconnect,

@@ -2,22 +2,19 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useSerial } from "./contexts/SerialContext";
+import { useSerial } from "../contexts/SerialContext";
 
-const LaunchPage = () => {
+export default function LaunchPage() {
   const router = useRouter();
   const [ballSpeed, setBallSpeed] = useState(5);
   const [paddleSpeed, setPaddleSpeed] = useState(5);
   const [loading, setLoading] = useState(true);
-  
-  // Utilisation du contexte serial
   const { isConnected, sendCommand } = useSerial();
-
+  
   // Vérifier si l'utilisateur est connecté
   useEffect(() => {
     if (!isConnected) {
-      // Rediriger vers la page de connexion si non connecté
-      router.push("/connexionPage");
+      router.push("/connexion");
     } else {
       setLoading(false);
     }
@@ -25,7 +22,7 @@ const LaunchPage = () => {
 
   // Retour à la page de connexion
   const backToConnection = () => {
-    router.push("/connexionPage");
+    router.push("/connexion");
   };
 
   // Démarrage du jeu
@@ -41,20 +38,19 @@ const LaunchPage = () => {
       localStorage.setItem("paddleSpeed", paddleSpeed.toString());
       
       // Naviguer vers la page de jeu
-      router.push("/gamePage");
+      router.push("/game");
     } catch (error) {
       console.error("Erreur lors du lancement du jeu:", error);
       alert("Une erreur est survenue lors du lancement du jeu. Vérifiez la connexion avec l'appareil.");
     }
   };
-
+  
+  // Écran de chargement
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p>Vérification de la connexion...</p>
-        </div>
+      <div className="min-h-screen flex flex-col items-center justify-center p-4">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mb-4"></div>
+        <p>Vérification de la connexion...</p>
       </div>
     );
   }
@@ -107,25 +103,22 @@ const LaunchPage = () => {
           </div>
         </div>
         
-        <div className="flex flex-col space-y-4">
-          <button
+        <div className="flex space-x-4">
+          <button 
+            onClick={backToConnection}
+            className="flex-1 py-2 px-4 bg-gray-500 hover:bg-gray-600 text-white rounded"
+          >
+            Retour
+          </button>
+          <button 
             onClick={handleLaunchGame}
-            className="bg-green-500 hover:bg-green-600 text-white py-3 px-4 rounded-md transition duration-200 disabled:bg-gray-300 disabled:cursor-not-allowed"
             disabled={!isConnected}
+            className={`flex-1 py-2 px-4 rounded ${!isConnected ? 'bg-gray-300 cursor-not-allowed' : 'bg-green-500 hover:bg-green-600 text-white'}`}
           >
             Lancer le jeu
-          </button>
-          
-          <button
-            onClick={backToConnection}
-            className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-md transition duration-200"
-          >
-            Retour à la page de connexion
           </button>
         </div>
       </div>
     </div>
   );
-};
-
-export default LaunchPage;
+} 

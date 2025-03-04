@@ -1,18 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { redirect } from 'next/navigation';
 
 export default function Home() {
-  const router = useRouter();
-  
-  useEffect(() => {
-    router.push("/connexionPage");
-  }, [router]);
-  
-  return (
-    <div className="min-h-screen flex items-center justify-center">
-      <p>Redirection vers la page de connexion...</p>
-    </div>
-  );
+  redirect('/connexion');
 }
