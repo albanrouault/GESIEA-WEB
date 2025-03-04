@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useSerial } from "../contexts/SerialContext";
 
@@ -13,10 +13,12 @@ export default function GamePage() {
   const [ballPosition, setBallPosition] = useState({ x: 50, y: 50 });
   const [leftPaddle, setLeftPaddle] = useState({ y: 50 });
   const [rightPaddle, setRightPaddle] = useState({ y: 50 });
-  const [startTime, setStartTime] = useState(Date.now());
   const [exchanges, setExchanges] = useState(0);
   const [gameTime, setGameTime] = useState("00:00");
   const [isPaused, setIsPaused] = useState(false);
+  
+  // Utiliser useRef pour stocker la valeur de startTime qui ne provoque pas de re-render
+  const startTimeRef = useRef(Date.now());
 
   useEffect(() => {
     // Vérifier si l'utilisateur est connecté
@@ -25,14 +27,14 @@ export default function GamePage() {
       return;
     }
 
-    // Initialiser le jeu
-    setStartTime(Date.now());
+    // Initialiser le jeu au premier rendu seulement (pas à chaque mise à jour)
+    // startTimeRef est déjà initialisé en dehors du useEffect
     
     // Timer pour mettre à jour le temps de jeu
     const timer = setInterval(() => {
       if (!isPaused) {
         const currentTime = Date.now();
-        const durationMs = currentTime - startTime;
+        const durationMs = currentTime - startTimeRef.current;
         const minutes = Math.floor(durationMs / 60000);
         const seconds = Math.floor((durationMs % 60000) / 1000);
         setGameTime(`${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
@@ -49,13 +51,13 @@ export default function GamePage() {
       clearInterval(timer);
       clearTimeout(gameTimer);
     };
-  }, [isConnected, router, isPaused, startTime]);
+  }, [isConnected, router, isPaused]); // Retiré startTime des dépendances
 
   // Fonction pour terminer le jeu et naviguer vers la page de fin
   const endGame = (winner: string) => {
     // Calculer la durée du jeu
     const endTime = Date.now();
-    const durationMs = endTime - startTime;
+    const durationMs = endTime - startTimeRef.current;
     const minutes = Math.floor(durationMs / 60000);
     const seconds = Math.floor((durationMs % 60000) / 1000);
     const duration = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
@@ -77,6 +79,13 @@ export default function GamePage() {
 
   // Fonction pour mettre le jeu en pause
   const togglePause = () => {
+    // En cas de reprise du jeu, on ajuste le temps de référence pour tenir compte de la pause
+    if (isPaused) {
+      // Ajuste startTimeRef pour qu'il prenne en compte le temps de pause
+      const pauseOffset = Date.now() - startTimeRef.current;
+      startTimeRef.current = Date.now() - pauseOffset;
+    }
+    
     setIsPaused(!isPaused);
     if (isConnected) {
       sendCommand(isPaused ? "RESUME_GAME" : "PAUSE_GAME");
