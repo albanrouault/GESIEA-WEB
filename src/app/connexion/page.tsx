@@ -59,7 +59,7 @@ export default function ConnexionPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-blue-800 to-purple-900 text-white flex flex-col items-center p-6">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-blue-800 to-purple-900 text-white flex flex-col items-center justify-center p-6">
       <div className="max-w-3xl w-full bg-black bg-opacity-30 backdrop-blur-md rounded-2xl shadow-2xl p-8 border border-white border-opacity-10">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-300">
@@ -86,7 +86,7 @@ export default function ConnexionPage() {
           <button 
             onClick={handleConnect}
             disabled={isConnected}
-            className={`${isConnected ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-blue-700 hover:bg-blue-600 hover:scale-105 transform transition'} py-3 px-4 rounded-lg shadow-lg flex items-center justify-center`}
+            className={`${isConnected ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-blue-700 hover:bg-blue-600 hover:scale-105 transform transition cursor-pointer'} py-3 px-4 rounded-lg shadow-lg flex items-center justify-center`}
           >
             <svg className={`w-5 h-5 mr-2 ${isConnected ? 'text-gray-400' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
@@ -97,7 +97,7 @@ export default function ConnexionPage() {
           <button 
             onClick={handleDisconnect}
             disabled={!isConnected}
-            className={`${!isConnected ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-rose-700 hover:bg-rose-600 hover:scale-105 transform transition'} py-3 px-4 rounded-lg shadow-lg flex items-center justify-center`}
+            className={`${!isConnected ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-rose-700 hover:bg-rose-600 hover:scale-105 transform transition cursor-pointer'} py-3 px-4 rounded-lg shadow-lg flex items-center justify-center`}
           >
             <svg className={`w-5 h-5 mr-2 ${!isConnected ? 'text-gray-400' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -108,7 +108,7 @@ export default function ConnexionPage() {
           {isConnected && (
             <button 
               onClick={continueToConfig}
-              className="bg-emerald-600 hover:bg-emerald-500 py-3 px-4 rounded-lg shadow-lg hover:scale-105 transform transition flex items-center justify-center"
+              className="bg-emerald-600 hover:bg-emerald-500 py-3 px-4 rounded-lg shadow-lg hover:scale-105 transform transition flex items-center justify-center cursor-pointer"
             >
               <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
@@ -133,7 +133,7 @@ export default function ConnexionPage() {
             <button
               onClick={handleSendCommand}
               disabled={!isConnected || !command.trim()}
-              className={`${!isConnected || !command.trim() ? 'bg-opacity-50 cursor-not-allowed' : 'hover:bg-cyan-600 hover:scale-105 transform transition'} bg-cyan-700 py-3 px-4 rounded-lg shadow-lg flex items-center justify-center`}
+              className={`${!isConnected || !command.trim() ? 'bg-opacity-50 cursor-not-allowed' : 'hover:bg-cyan-600 hover:scale-105 transform transition cursor-pointer'} bg-cyan-700 py-3 px-4 rounded-lg shadow-lg flex items-center justify-center`}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
