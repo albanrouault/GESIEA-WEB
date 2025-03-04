@@ -19,6 +19,7 @@ type SerialContextType = {
   baudRate: number;
   logs: LogEntry[];
   gameStatus: 'none' | 'running' | 'paused';
+  receivedData: string;
   addLog: (entry: LogEntry) => void;
   setBaudRate: (rate: number) => void;
   connect: () => Promise<void>;
@@ -37,6 +38,7 @@ const defaultContext: SerialContextType = {
   baudRate: 115200,
   logs: [],
   gameStatus: 'none',
+  receivedData: "",
   addLog: () => {},
   setBaudRate: () => {},
   connect: async () => {},
@@ -525,6 +527,7 @@ export const SerialProvider = ({ children }: SerialProviderProps) => {
     baudRate,
     logs,
     gameStatus,
+    receivedData,
     addLog,
     setBaudRate,
     connect,
