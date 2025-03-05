@@ -7,7 +7,7 @@ export default function DebugConsole() {
   const [isOpen, setIsOpen] = useState(false);
   const [message, setMessage] = useState('');
   const [copySuccess, setCopySuccess] = useState(false);
-  const { logs, sendCommand } = useSerial();
+  const { logs, sendCommand, clearLog } = useSerial();
   const consoleRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll vers le bas quand de nouvelles données arrivent
@@ -65,6 +65,15 @@ export default function DebugConsole() {
           <div className="flex justify-between items-center p-2 bg-gray-800 border-b border-gray-700">
             <h3 className="text-white font-mono text-sm">Console de débogage</h3>
             <div className="flex items-center gap-2">
+              <button
+                onClick={clearLog}
+                className="text-gray-400 hover:text-white transition-colors"
+                title="Effacer les logs"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
               <button
                 onClick={handleCopyLogs}
                 className={`text-gray-400 hover:text-white transition-colors ${copySuccess ? 'text-green-400' : ''}`}
