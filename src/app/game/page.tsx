@@ -61,7 +61,7 @@ export default function GamePage() {
   const [isEnding, setIsEnding] = useState(false);
   
   // Variables de configuration du jeu
-  const [gridSize, setGridSize] = useState({ width: 1000, height: 600 }); // Dimensions légèrement réduites mais toujours rectangulaires
+  const [gridSize, setGridSize] = useState({ width: 550, height: 400 }); // Dimensions plus modérées mais légèrement allongées
   const [ballSize, setBallSize] = useState(2);
   
   // Référence pour le temps de départ
