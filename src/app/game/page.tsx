@@ -183,7 +183,7 @@ export default function GamePage() {
 
   // Fonction pour mettre à jour l'interface avec les données du jeu
   const updateGameInterface = useCallback((gameData: GameData) => {
-    // Mise à jour du statut
+    // Mise à jour du statut - no matter if it's game:all or game:run
     setGameStatus(gameData.status);
     
     // Si le jeu est terminé (status 3), traiter la fin de jeu
@@ -195,7 +195,7 @@ export default function GamePage() {
       return;
     }
     
-    // Mise à jour de isPaused basé sur le statut
+    // Mise à jour de isPaused basé sur le statut - important for both game:all and game:run
     setIsPaused(gameData.status === 2);
     
     // Initialisation ou mise à jour des dimensions du jeu
@@ -217,7 +217,6 @@ export default function GamePage() {
       };
     } else {
       // Update des scores si nécessaire (game:run)
-      // On vérifie aussi la référence pour éviter les mises à jour multiples
       if (scoreLeft !== gameData.player1Points && lastScoresRef.current.left !== gameData.player1Points) {
         setScoreLeft(gameData.player1Points);
         lastScoresRef.current.left = gameData.player1Points;
@@ -233,8 +232,9 @@ export default function GamePage() {
     // Calcul des positions relatives en pourcentage pour l'affichage
     const { width: gridWidth, height: gridHeight } = gridSize;
     
-    // For the ball, convert the top-left corner to center coordinates
-    // since we're using transform: translate(-50%, -50%) in the CSS
+    // Mise à jour de la position de la balle avec un ajustement pour le centrage
+    // La position de la balle est son coin supérieur gauche, il faut ajouter la moitié de sa taille
+    // pour obtenir le centre
     const ballXPercent = ((gameData.ballX + gameData.ballSize / 2) / gridWidth) * 100;
     const ballYPercent = ((gameData.ballY + gameData.ballSize / 2) / gridHeight) * 100;
     
@@ -245,16 +245,14 @@ export default function GamePage() {
     setBallSize(gameData.ballSize);
     
     // Mise à jour de la position et taille des raquettes
-    // For the left paddle, keep x as the left edge but adjust y for vertical centering
-    // since we're using transform: translate(0, -50%) in the CSS
+    // Pour les raquettes, on doit ajuster la position Y pour le centrage vertical
     setLeftPaddle({
       x: (gameData.paddleLeftX / gridWidth) * 100,
       y: ((gameData.paddleLeftY + gameData.paddleLeftSize / 2) / gridHeight) * 100,
       size: gameData.paddleLeftSize,
       width: gameData.paddleWidth
     });
-
-    // Same adjustment for the right paddle
+    
     setRightPaddle({
       x: (gameData.paddleRightX / gridWidth) * 100,
       y: ((gameData.paddleRightY + gameData.paddleRightSize / 2) / gridHeight) * 100,
@@ -288,7 +286,7 @@ export default function GamePage() {
       });
     }
   }, [gridSize, scoreLeft, scoreRight, handleEndGame]);
-
+  
   // Calcul des dimensions réelles des éléments en fonction de la taille du terrain affiché
   const calculateRealDimensions = useCallback(() => {
     if (!gameContainerRef.current) return { ballSize: 10, paddleWidth: 12 };
@@ -301,28 +299,20 @@ export default function GamePage() {
     const heightScale = containerHeight / gridSize.height;
     
     // Calculer la taille réelle de la balle en pixels (proportionnelle à la taille du conteneur)
-    const ballPixelSize = Math.max(6, Math.round(ballSize * widthScale * 2));
+    const ballPixelSize = Math.max(6, Math.round(ballSize * widthScale));
     
     // Ajuster la largeur des raquettes pour qu'elle soit proportionnelle à la largeur du conteneur
-    // Une largeur fixe de 8 pixels dans une grille de 400px devrait être proportionnellement
-    // équivalente dans un conteneur plus petit ou plus grand
-    const paddlePixelWidth = Math.max(8, Math.round((leftPaddle.width / gridSize.width) * containerWidth));
-    
-    console.log("Dimensions réelles:", {
-      containerWidth,
-      containerHeight,
-      ballPixelSize,
-      paddlePixelWidth,
-      widthScale,
-      heightScale
-    });
+    // La largeur des raquettes est spécifiée en unités absolues dans le microcontrôleur
+    const paddlePixelWidth = Math.max(8, Math.round(leftPaddle.width * widthScale));
+
+    console.log("Dimensions réelles:", { ballSize: ballPixelSize, paddleWidth: paddlePixelWidth });
     
     return {
       ballSize: ballPixelSize,
       paddleWidth: paddlePixelWidth
     };
   }, [ballSize, gridSize.width, gridSize.height, leftPaddle.width]);
-
+  
   // Écouter les données reçues du port série
   useEffect(() => {
     if (!receivedData || receivedData === lastReceivedDataRef.current) return;
@@ -492,7 +482,7 @@ export default function GamePage() {
           className="absolute bg-gradient-to-b from-blue-400 to-cyan-600 rounded shadow-[0_0_10px_rgba(6,182,212,0.7)]"
           style={{
             width: `${realPaddleWidth}px`,
-            height: `${leftPaddle.size}px`,
+            height: `${leftPaddle.size * (gameContainerRef.current?.clientHeight || 0) / gridSize.height}px`,
             left: `${leftPaddle.x}%`,
             top: `${leftPaddle.y}%`,
             transform: "translate(0, -50%)", // Ne translate que sur l'axe Y
@@ -504,7 +494,7 @@ export default function GamePage() {
           className="absolute bg-gradient-to-b from-rose-400 to-pink-600 rounded shadow-[0_0_10px_rgba(244,114,182,0.7)]"
           style={{
             width: `${realPaddleWidth}px`,
-            height: `${rightPaddle.size}px`,
+            height: `${rightPaddle.size * (gameContainerRef.current?.clientHeight || 0) / gridSize.height}px`,
             left: `${rightPaddle.x}%`, // Utiliser left au lieu de right pour un positionnement plus cohérent
             top: `${rightPaddle.y}%`,
             transform: "translate(0, -50%)", // Ne translate que sur l'axe Y
