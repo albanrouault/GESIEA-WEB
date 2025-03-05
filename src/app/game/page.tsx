@@ -119,12 +119,8 @@ export default function GamePage() {
     setScoreLeft(p1Points);
     setScoreRight(p2Points);
     
-    // Envoyer la commande de fin de jeu au STM32
-    if (isConnected) {
-      sendCommand("game:stop").catch(err => {
-        console.error("Erreur lors de l'envoi de la commande de fin:", err);
-      });
-    }
+    // Ne plus envoyer automatiquement la commande game:stop ici
+    // La commande ne doit être envoyée que lorsque l'utilisateur clique sur le bouton "Terminer la partie"
     
     // Petit délai avant la navigation pour s'assurer que les données sont bien enregistrées
     setTimeout(() => {
@@ -135,10 +131,16 @@ export default function GamePage() {
 
   // Fonction pour confirmer la fin de partie
   const confirmEndGame = useCallback(() => {
-    if (window.confirm("Êtes-vous sûr de vouloir terminer la partie ?")) {
-      handleEndGame("Abandon", 0, 0);
+    // Supprimer la popup de confirmation
+    // Envoyer la commande game:stop au STM32 seulement lors du clic sur "Terminer la partie"
+    if (isConnected) {
+      sendCommand("game:stop").catch(err => {
+        console.error("Erreur lors de l'envoi de la commande de fin:", err);
+      });
     }
-  }, [handleEndGame]);
+    
+    handleEndGame("Abandon", scoreLeft, scoreRight);
+  }, [handleEndGame, isConnected, sendCommand, scoreLeft, scoreRight]);
 
   // Fonction pour parser les données de jeu
   const parseGameData = useCallback((dataStr: string): GameData | null => {
