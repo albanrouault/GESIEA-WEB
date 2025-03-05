@@ -232,10 +232,12 @@ export default function GamePage() {
     
     // Calcul des positions relatives en pourcentage pour l'affichage
     const { width: gridWidth, height: gridHeight } = gridSize;
+    
+    // Mise à jour de la position de la balle avec un ajustement pour le centrage
+    // La position de la balle est son centre, pas son coin supérieur gauche
     const ballXPercent = (gameData.ballX / gridWidth) * 100;
     const ballYPercent = (gameData.ballY / gridHeight) * 100;
     
-    // Mise à jour de la position et taille de la balle
     setBallPosition({
       x: ballXPercent,
       y: ballYPercent
@@ -243,6 +245,8 @@ export default function GamePage() {
     setBallSize(gameData.ballSize);
     
     // Mise à jour de la position et taille des raquettes
+    // Pour les raquettes, nous utilisons la position exacte reçue du contrôleur
+    // sans ajustement supplémentaire car les raquettes sont positionnées par leur bord
     setLeftPaddle({
       x: (gameData.paddleLeftX / gridWidth) * 100,
       y: (gameData.paddleLeftY / gridHeight) * 100,
@@ -256,6 +260,32 @@ export default function GamePage() {
       size: gameData.paddleRightSize,
       width: gameData.paddleWidth
     });
+    
+    // Log pour debug des positions
+    if (process.env.NODE_ENV === 'development') {
+      console.log("Grid Size:", gridSize);
+      console.log("Ball:", { 
+        rawX: gameData.ballX, 
+        rawY: gameData.ballY, 
+        pctX: ballXPercent, 
+        pctY: ballYPercent, 
+        size: gameData.ballSize 
+      });
+      console.log("Left Paddle:", { 
+        rawX: gameData.paddleLeftX, 
+        rawY: gameData.paddleLeftY, 
+        pctX: (gameData.paddleLeftX / gridWidth) * 100,
+        pctY: (gameData.paddleLeftY / gridHeight) * 100,
+        size: gameData.paddleLeftSize 
+      });
+      console.log("Right Paddle:", { 
+        rawX: gameData.paddleRightX, 
+        rawY: gameData.paddleRightY, 
+        pctX: (gameData.paddleRightX / gridWidth) * 100,
+        pctY: (gameData.paddleRightY / gridHeight) * 100,
+        size: gameData.paddleRightSize 
+      });
+    }
   }, [gridSize, scoreLeft, scoreRight, handleEndGame]);
 
   // Calcul des dimensions réelles des éléments en fonction de la taille du terrain affiché
@@ -265,17 +295,32 @@ export default function GamePage() {
     const containerWidth = gameContainerRef.current.clientWidth;
     const containerHeight = gameContainerRef.current.clientHeight;
     
-    // Calculer la taille de la balle en pixels
-    const ballPixelSize = Math.max(5, (ballSize / gridSize.width) * containerWidth);
+    // Facteur d'échelle basé sur la taille du conteneur
+    const widthScale = containerWidth / gridSize.width;
+    const heightScale = containerHeight / gridSize.height;
     
-    // Calculer la largeur des raquettes en pixels
-    const paddlePixelWidth = Math.max(8, (leftPaddle.width / gridSize.width) * containerWidth);
+    // Calculer la taille réelle de la balle en pixels (proportionnelle à la taille du conteneur)
+    const ballPixelSize = Math.max(6, Math.round(ballSize * widthScale * 2));
+    
+    // Ajuster la largeur des raquettes pour qu'elle soit proportionnelle à la largeur du conteneur
+    // Une largeur fixe de 8 pixels dans une grille de 400px devrait être proportionnellement
+    // équivalente dans un conteneur plus petit ou plus grand
+    const paddlePixelWidth = Math.max(8, Math.round((leftPaddle.width / gridSize.width) * containerWidth));
+    
+    console.log("Dimensions réelles:", {
+      containerWidth,
+      containerHeight,
+      ballPixelSize,
+      paddlePixelWidth,
+      widthScale,
+      heightScale
+    });
     
     return {
       ballSize: ballPixelSize,
       paddleWidth: paddlePixelWidth
     };
-  }, [ballSize, gridSize.width, leftPaddle.width]);
+  }, [ballSize, gridSize.width, gridSize.height, leftPaddle.width]);
 
   // Écouter les données reçues du port série
   useEffect(() => {
@@ -436,7 +481,8 @@ export default function GamePage() {
             height: `${realBallSize}px`,
             left: `${ballPosition.x}%`,
             top: `${ballPosition.y}%`,
-            transform: "translate(-50%, -50%)",
+            transform: "translate(-50%, -50%)", // Centre la balle sur ses coordonnées
+            zIndex: 10, // S'assurer que la balle est au-dessus des autres éléments
           }}
         ></div>
 
@@ -448,7 +494,7 @@ export default function GamePage() {
             height: `${leftPaddle.size}px`,
             left: `${leftPaddle.x}%`,
             top: `${leftPaddle.y}%`,
-            transform: "translateY(-50%)",
+            transform: "translate(0, -50%)", // Ne translate que sur l'axe Y
           }}
         ></div>
 
@@ -458,9 +504,9 @@ export default function GamePage() {
           style={{
             width: `${realPaddleWidth}px`,
             height: `${rightPaddle.size}px`,
-            right: `${100 - rightPaddle.x - (rightPaddle.width / gridSize.width * 100)}%`,
+            left: `${rightPaddle.x}%`, // Utiliser left au lieu de right pour un positionnement plus cohérent
             top: `${rightPaddle.y}%`,
-            transform: "translateY(-50%)",
+            transform: "translate(0, -50%)", // Ne translate que sur l'axe Y
           }}
         ></div>
         

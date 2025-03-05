@@ -93,22 +93,56 @@ export default function LaunchPage() {
   };
 
   // Adapter les paramètres des sliders en fonction de la taille de la grille
-  const scaleParameters = (dimensions) => {
-    // Ajuster les valeurs des paramètres en fonction de la taille du terrain
-    // Plus le terrain est grand, plus les valeurs doivent être adaptées
+  const scaleParameters = (dimensions: { width: number; height: number; aspectRatio?: number }) => {
+    // Calcul des valeurs adaptées à la taille du terrain
     
     // Base de référence: terrain de 400x300
-    const referenceArea = BASE_GRID_WIDTH * BASE_GRID_HEIGHT;
-    const actualArea = dimensions.width * dimensions.height;
+    const referenceWidth = BASE_GRID_WIDTH;
+    const referenceHeight = BASE_GRID_HEIGHT;
     
-    // Facteur d'échelle basé sur le ratio des surfaces
-    const scaleFactor = Math.sqrt(actualArea / referenceArea);
+    // Facteurs d'échelle spécifiques aux dimensions
+    const widthRatio = dimensions.width / referenceWidth;
+    const heightRatio = dimensions.height / referenceHeight;
     
-    // Appliquer l'échelle aux paramètres
-    const scaledBallSpeed = Math.max(1, Math.round(ballSpeed * SLIDER_SCALE_FACTOR.ballSpeed * scaleFactor));
-    const scaledBallSize = Math.max(2, Math.round(ballSize * SLIDER_SCALE_FACTOR.ballSize * scaleFactor));
-    const scaledPaddleSize = Math.max(10, Math.round(paddleSize * SLIDER_SCALE_FACTOR.paddleSize * scaleFactor));
-    const scaledPaddleSpeed = Math.max(1, Math.round(paddleSpeed * SLIDER_SCALE_FACTOR.paddleSpeed * scaleFactor));
+    // Calcul de la taille des raquettes (proportionnelle à la hauteur du terrain)
+    // Convertir la valeur du slider (1-10) en pourcentage de la hauteur du terrain
+    // Petite raquette = 10% de la hauteur, grande raquette = 35% de la hauteur
+    const minPaddlePercent = 10; // 10% de la hauteur pour slider = 1
+    const maxPaddlePercent = 35; // 35% de la hauteur pour slider = 10
+    const paddleHeightPercent = minPaddlePercent + ((maxPaddlePercent - minPaddlePercent) * (paddleSize - 1) / 9);
+    const scaledPaddleSize = Math.round((paddleHeightPercent / 100) * dimensions.height);
+    
+    // Calcul de la taille de la balle (proportionnelle à la plus petite dimension du terrain)
+    // Petite balle = 1.5% de la hauteur, grande balle = 5% de la hauteur
+    const minBallPercent = 1.5;
+    const maxBallPercent = 5;
+    const ballSizePercent = minBallPercent + ((maxBallPercent - minBallPercent) * (ballSize - 1) / 9);
+    const scaledBallSize = Math.max(3, Math.round((ballSizePercent / 100) * Math.min(dimensions.width, dimensions.height)));
+    
+    // Vitesse de la balle (ajustée en fonction de la taille du terrain)
+    // La vitesse doit augmenter proportionnellement à la taille du terrain
+    const minBallSpeed = 1;
+    const maxBallSpeed = 6;
+    const rawBallSpeed = minBallSpeed + ((maxBallSpeed - minBallSpeed) * (ballSpeed - 1) / 9);
+    // Ajuster en fonction de la diagonale du terrain pour une expérience cohérente
+    const diagonalRatio = Math.sqrt(Math.pow(widthRatio, 2) + Math.pow(heightRatio, 2)) / Math.sqrt(2);
+    const scaledBallSpeed = Math.max(1, Math.round(rawBallSpeed * diagonalRatio));
+    
+    // Vitesse des raquettes (ajustée pour maintenir un gameplay équilibré)
+    const minPaddleSpeed = 1;
+    const maxPaddleSpeed = 8;
+    const rawPaddleSpeed = minPaddleSpeed + ((maxPaddleSpeed - minPaddleSpeed) * (paddleSpeed - 1) / 9);
+    const scaledPaddleSpeed = Math.max(1, Math.round(rawPaddleSpeed * heightRatio));
+    
+    console.log("Paramètres d'origine:", { ballSpeed, ballSize, paddleSize, paddleSpeed });
+    console.log("Paramètres adaptés:", { 
+      scaledBallSpeed, 
+      scaledBallSize, 
+      scaledPaddleSize, 
+      scaledPaddleSpeed,
+      paddleHeightPercent: paddleHeightPercent + "%",
+      ballSizePercent: ballSizePercent + "%"
+    });
     
     return {
       ballSpeed: scaledBallSpeed,
