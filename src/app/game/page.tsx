@@ -289,33 +289,27 @@ export default function GamePage() {
       y: clampedBallY
     });
     setBallSize(gameData.ballSize);
+
+    const paddleWidthPercent = (gameData.paddleWidth / gridSize.width) * 100;
     
     // Mise à jour de la position et taille des raquettes
     // Pour les raquettes, on doit ajuster la position Y pour le centrage vertical
-    const leftPaddleXPercent = (gameData.paddleLeftX / gridWidth) * 100;
+    const leftPaddleXPercent = (gameData.paddleLeftX / gridSize.width) * 100;
     const leftPaddleYPercent = ((gameData.paddleLeftY + gameData.paddleLeftSize / 2) / gridHeight) * 100;
-    
-    // Limiter les valeurs pour la raquette gauche
-    const clampedLeftPaddleX = Math.max(0, Math.min(100, leftPaddleXPercent));
-    const clampedLeftPaddleY = Math.max(0, Math.min(100, leftPaddleYPercent));
-    
+        
     setLeftPaddle({
-      x: clampedLeftPaddleX,
-      y: clampedLeftPaddleY,
+      x: leftPaddleXPercent,
+      y: leftPaddleYPercent,
       size: gameData.paddleLeftSize,
       width: gameData.paddleWidth
     });
-    
+        
     const rightPaddleXPercent = (gameData.paddleRightX / gridWidth) * 100;
     const rightPaddleYPercent = ((gameData.paddleRightY + gameData.paddleRightSize / 2) / gridHeight) * 100;
-    
-    // Limiter les valeurs pour la raquette droite
-    const clampedRightPaddleX = Math.max(0, Math.min(100, rightPaddleXPercent));
-    const clampedRightPaddleY = Math.max(0, Math.min(100, rightPaddleYPercent));
-    
+        
     setRightPaddle({
-      x: clampedRightPaddleX,
-      y: clampedRightPaddleY,
+      x: rightPaddleXPercent,
+      y: rightPaddleYPercent,
       size: gameData.paddleRightSize,
       width: gameData.paddleWidth
     });
@@ -329,23 +323,21 @@ export default function GamePage() {
     const containerWidth = gameContainerRef.current.clientWidth;
     const containerHeight = gameContainerRef.current.clientHeight;
     
-    // Ne recalculer que si les dimensions ont changé significativement
     if (containerWidth === 0 || containerHeight === 0) {
       return calculatedDimensionsRef.current;
     }
     
-    // Facteur d'échelle basé sur la taille du conteneur
+    // Important: utiliser la largeur RÉELLE du conteneur pour les calculs
     const widthScale = containerWidth / gridSize.width;
     const heightScale = containerHeight / gridSize.height;
     
-    // Calculer la taille réelle de la balle en pixels (proportionnelle à la taille du conteneur)
+    // Calculer la taille de la balle en pixels
     const ballPixelSize = Math.max(6, Math.round(ballSize * widthScale));
     
-    // Ajuster la largeur des raquettes pour qu'elle soit proportionnelle à la largeur du conteneur
-    // La largeur des raquettes est spécifiée en unités absolues dans le microcontrôleur
+    // Calculer la largeur des raquettes en pixels
+    // La largeur des raquettes devrait être proportionnelle à la largeur totale
     const paddlePixelWidth = Math.max(8, Math.round(leftPaddle.width * widthScale));
-
-    // Mettre à jour la référence
+    
     calculatedDimensionsRef.current = {
       ballSize: ballPixelSize,
       paddleWidth: paddlePixelWidth

@@ -97,6 +97,21 @@ export const SerialProvider = ({ children }: SerialProviderProps) => {
     return `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}.${now.getMilliseconds().toString().padStart(3, '0')}`;
   };
 
+  const processReceivedData = (line: string) => {
+    if (line.startsWith('game:all:') || line.startsWith('game:run:')) {
+      const params = line.split(':')[2].split(',').map(Number);
+      console.debug('Message jeu reçu:', {
+        type: line.startsWith('game:all:') ? 'all' : 'run',
+        status: params[0],
+        gridDimensions: line.startsWith('game:all:') ? `${params[1]}x${params[2]}` : 'N/A',
+        ball: { x: params[line.startsWith('game:all:') ? 4 : 1], y: params[line.startsWith('game:all:') ? 5 : 2] },
+        paddleLeft: { x: params[line.startsWith('game:all:') ? 8 : 6], y: params[line.startsWith('game:all:') ? 9 : 7] },
+        paddleRight: { x: params[line.startsWith('game:all:') ? 12 : 10], y: params[line.startsWith('game:all:') ? 13 : 11] },
+        zones: line.startsWith('game:all:') ? `left:${params[18]}, right:${params[19]}` : 'N/A'
+      });
+    }
+  };
+
   // Fonction pour traiter les données du jeu
   const processGameData = (message: string) => {
     if (message.startsWith('game:all:') || message.startsWith('game:run:')) {
@@ -147,6 +162,9 @@ export const SerialProvider = ({ children }: SerialProviderProps) => {
                 message: line,
                 timestamp: getTimestamp()
               });
+
+              // Traiter les messages reçus
+              processReceivedData(line);
               
               // Traiter les données du jeu si c'est un message de jeu
               processGameData(line);
