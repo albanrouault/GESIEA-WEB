@@ -8,20 +8,39 @@ import DebugConsole from "@/components/DebugConsole";
 // Types pour les données du jeu
 interface GameData {
   status: number;
+  
+  // Dimensions du jeu
   gridWidth?: number;
   gridHeight?: number;
-  ballSize?: number;
+  
+  // Balle
+  ballSize: number;
   ballX: number;
   ballY: number;
   ballDx: number;
   ballDy: number;
-  paddleLeft: number;
+  
+  // Raquette gauche
+  paddleLeftX: number;
+  paddleLeftY: number;
   paddleLeftSize: number;
-  paddleRight: number;
+  
+  // Raquette droite
+  paddleRightX: number;
+  paddleRightY: number;
   paddleRightSize: number;
+  
+  // Largeur des raquettes
+  paddleWidth: number;
+  
+  // Points
   maxPoints?: number;
-  player1Points?: number;
-  player2Points?: number;
+  player1Points: number;
+  player2Points: number;
+  
+  // Zones
+  leftZoneWidth?: number;
+  rightZoneWidth?: number;
 }
 
 export default function GamePage() {
@@ -32,8 +51,8 @@ export default function GamePage() {
   const [scoreLeft, setScoreLeft] = useState(0);
   const [scoreRight, setScoreRight] = useState(0);
   const [ballPosition, setBallPosition] = useState({ x: 50, y: 50 });
-  const [leftPaddle, setLeftPaddle] = useState({ y: 50, size: 100 });
-  const [rightPaddle, setRightPaddle] = useState({ y: 50, size: 100 });
+  const [leftPaddle, setLeftPaddle] = useState({ x: 20, y: 50, size: 100, width: 12 });
+  const [rightPaddle, setRightPaddle] = useState({ x: 80, y: 50, size: 100, width: 12 });
   const [exchanges, setExchanges] = useState(0);
   const [gameTime, setGameTime] = useState("00:00");
   const [isPaused, setIsPaused] = useState(false);
@@ -41,7 +60,7 @@ export default function GamePage() {
   const [gameInitialized, setGameInitialized] = useState(false);
   
   // Variables de configuration du jeu
-  const [gridSize, setGridSize] = useState(100);
+  const [gridSize, setGridSize] = useState({ width: 100, height: 100 });
   const [ballSize, setBallSize] = useState(2);
   
   // Référence pour le temps de départ
@@ -49,15 +68,42 @@ export default function GamePage() {
   // Référence pour stocker les dernières données reçues
   const lastReceivedDataRef = useRef("");
 
+  // Fonction pour terminer le jeu et naviguer vers la page de fin
+  const handleEndGame = useCallback((winner: string) => {
+    // Calculer la durée du jeu
+    const endTime = Date.now();
+    const durationMs = endTime - startTimeRef.current;
+    const minutes = Math.floor(durationMs / 60000);
+    const seconds = Math.floor((durationMs % 60000) / 1000);
+    const duration = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    
+    // Sauvegarder les résultats dans localStorage pour la page de fin
+    localStorage.setItem("winner", winner);
+    localStorage.setItem("duration", duration);
+    localStorage.setItem("exchanges", exchanges.toString());
+    localStorage.setItem("finalScore", `${scoreLeft}-${scoreRight}`);
+    
+    // Envoyer la commande de fin de jeu au STM32
+    if (isConnected) {
+      sendCommand("game:stop");
+    }
+    
+    // Naviguer vers la page de fin
+    router.push("/finish");
+  }, [exchanges, isConnected, router, scoreLeft, scoreRight, sendCommand]);
+
   // Fonction pour parser les données de jeu
   const parseGameData = useCallback((dataStr: string): GameData | null => {
     try {
       if (dataStr.startsWith("game:all:")) {
-        // Format: game:all:status,grid_width,grid_height,ball_size,ball_x,ball_y,ball_dx,ball_dy,paddle_left,paddle_left_size,paddle_right,paddle_right_size,max_points,player1_points,player2_points
+        // Format: game:all:status,grid_width,grid_height,ball_size,ball_x,ball_y,ball_dx,ball_dy,
+        // paddle_left_x,paddle_left_y,paddle_left_size,paddle_width,
+        // paddle_right_x,paddle_right_y,paddle_right_size,max_points,player1_points,player2_points,
+        // left_zone_width,right_zone_width
         const paramsStr = dataStr.substring("game:all:".length);
         const params = paramsStr.split(",").map(Number);
         
-        if (params.length >= 15) {
+        if (params.length >= 20) {
           return {
             status: params[0],
             gridWidth: params[1],
@@ -67,21 +113,28 @@ export default function GamePage() {
             ballY: params[5],
             ballDx: params[6],
             ballDy: params[7],
-            paddleLeft: params[8],
-            paddleLeftSize: params[9],
-            paddleRight: params[10],
-            paddleRightSize: params[11],
-            maxPoints: params[12],
-            player1Points: params[13],
-            player2Points: params[14]
+            paddleLeftX: params[8],
+            paddleLeftY: params[9],
+            paddleLeftSize: params[10],
+            paddleWidth: params[11],
+            paddleRightX: params[12],
+            paddleRightY: params[13],
+            paddleRightSize: params[14],
+            maxPoints: params[15],
+            player1Points: params[16],
+            player2Points: params[17],
+            leftZoneWidth: params[18],
+            rightZoneWidth: params[19]
           };
         }
       } else if (dataStr.startsWith("game:run:")) {
-        // Format: game:run:status,x,y,dx,dy,ballsize,left,leftsize,right,rightsize,p1points,p2points
+        // Format: game:run:status,ball_x,ball_y,ball_dx,ball_dy,ball_size,
+        // paddle_left_x,paddle_left_y,paddle_left_size,paddle_width,
+        // paddle_right_x,paddle_right_y,paddle_right_size,p1points,p2points
         const paramsStr = dataStr.substring("game:run:".length);
         const params = paramsStr.split(",").map(Number);
         
-        if (params.length >= 12) {
+        if (params.length >= 15) {
           return {
             status: params[0],
             ballX: params[1],
@@ -89,12 +142,15 @@ export default function GamePage() {
             ballDx: params[3],
             ballDy: params[4],
             ballSize: params[5],
-            paddleLeft: params[6],
-            paddleLeftSize: params[7],
-            paddleRight: params[8],
-            paddleRightSize: params[9],
-            player1Points: params[10],
-            player2Points: params[11]
+            paddleLeftX: params[6],
+            paddleLeftY: params[7],
+            paddleLeftSize: params[8],
+            paddleWidth: params[9],
+            paddleRightX: params[10],
+            paddleRightY: params[11],
+            paddleRightSize: params[12],
+            player1Points: params[13],
+            player2Points: params[14]
           };
         }
       }
@@ -109,64 +165,69 @@ export default function GamePage() {
     // Mise à jour du statut
     setGameStatus(gameData.status);
     
-    // Si le jeu est terminé (status 3), traiter la fin de partie
+    // Si le jeu est terminé (status 3), traiter la fin de jeu
     if (gameData.status === 3) {
-      // Vérifier que les points sont disponibles
-      if (gameData.player1Points !== undefined && gameData.player2Points !== undefined) {
-        // Déterminer le gagnant (celui qui a le plus de points)
-        const winner = gameData.player1Points > gameData.player2Points ? "Joueur 1" : 
-                      (gameData.player2Points > gameData.player1Points ? "Joueur 2" : "Match nul");
-        endGame(winner);
-      }
+      // Déterminer le gagnant (celui qui a le plus de points)
+      const winner = gameData.player1Points > gameData.player2Points ? "Joueur 1" : 
+                    (gameData.player2Points > gameData.player1Points ? "Joueur 2" : "Match nul");
+      handleEndGame(winner);
       return;
     }
     
     // Mise à jour de isPaused basé sur le statut
     setIsPaused(gameData.status === 2);
     
-    // Initialisation ou mise à jour des données de jeu
-    if (gameData.gridWidth !== undefined && gameData.gridHeight !== undefined && gameData.ballSize !== undefined) {
+    // Initialisation ou mise à jour des dimensions du jeu
+    if (gameData.gridWidth !== undefined && gameData.gridHeight !== undefined) {
       // C'est une initialisation (game:all)
-      setGridSize(Math.max(gameData.gridWidth, gameData.gridHeight));
-      setBallSize(gameData.ballSize);
+      setGridSize({
+        width: gameData.gridWidth,
+        height: gameData.gridHeight
+      });
       setGameInitialized(true);
-    }
-    
-    // Mise à jour des scores si disponibles
-    if (gameData.player1Points !== undefined) {
+      
+      // Initialiser les scores
       setScoreLeft(gameData.player1Points);
-    }
-    if (gameData.player2Points !== undefined) {
       setScoreRight(gameData.player2Points);
+    } else {
+      // Update des scores si nécessaire (game:run)
+      if (scoreLeft !== gameData.player1Points) {
+        setScoreLeft(gameData.player1Points);
+        setExchanges(prev => prev + 1);
+      }
+      if (scoreRight !== gameData.player2Points) {
+        setScoreRight(gameData.player2Points);
+        setExchanges(prev => prev + 1);
+      }
     }
     
     // Calcul des positions relatives en pourcentage pour l'affichage
-    const ballXPercent = (gameData.ballX / gridSize) * 100;
-    const ballYPercent = (gameData.ballY / gridSize) * 100;
+    const { width: gridWidth, height: gridHeight } = gridSize;
+    const ballXPercent = (gameData.ballX / gridWidth) * 100;
+    const ballYPercent = (gameData.ballY / gridHeight) * 100;
     
-    // Mise à jour de la position de la balle
+    // Mise à jour de la position et taille de la balle
     setBallPosition({
       x: ballXPercent,
       y: ballYPercent
     });
+    setBallSize(gameData.ballSize);
     
     // Mise à jour de la position et taille des raquettes
     setLeftPaddle({
-      y: (gameData.paddleLeft / gridSize) * 100,
-      size: gameData.paddleLeftSize
+      x: (gameData.paddleLeftX / gridWidth) * 100,
+      y: (gameData.paddleLeftY / gridHeight) * 100,
+      size: gameData.paddleLeftSize,
+      width: gameData.paddleWidth
     });
     
     setRightPaddle({
-      y: (gameData.paddleRight / gridSize) * 100,
-      size: gameData.paddleRightSize
+      x: (gameData.paddleRightX / gridWidth) * 100,
+      y: (gameData.paddleRightY / gridHeight) * 100,
+      size: gameData.paddleRightSize,
+      width: gameData.paddleWidth
     });
-    
-    // Vérifier si un point a été marqué (quand la balle revient au centre)
-    if (Math.abs(ballXPercent - 50) < 2 && Math.abs(ballYPercent - 50) < 2) {
-      // Augmenter le nombre d'échanges
-      setExchanges(prev => prev + 1);
-    }
-  }, [gridSize]);
+  }, [gridSize, scoreLeft, scoreRight, handleEndGame]);
 
   // Écouter les données reçues du port série
   useEffect(() => {
@@ -216,29 +277,6 @@ export default function GamePage() {
       clearInterval(timer);
     };
   }, [isConnected, router, isPaused, gameStatus]);
-
-  // Fonction pour terminer le jeu et naviguer vers la page de fin
-  const endGame = (winner: string) => {
-    // Calculer la durée du jeu
-    const endTime = Date.now();
-    const durationMs = endTime - startTimeRef.current;
-    const minutes = Math.floor(durationMs / 60000);
-    const seconds = Math.floor((durationMs % 60000) / 1000);
-    const duration = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-    
-    // Sauvegarder les résultats dans localStorage pour la page de fin
-    localStorage.setItem("winner", winner);
-    localStorage.setItem("duration", duration);
-    localStorage.setItem("finalScore", `${scoreLeft}-${scoreRight}`);
-    
-    // Envoyer la commande de fin de jeu au STM32 uniquement si c'est un abandon volontaire
-    if (isConnected && winner === "Abandon") {
-      sendCommand("game:stop");
-    }
-    
-    // Naviguer vers la page de fin
-    router.push("/finish");
-  };
 
   // Fonction pour mettre le jeu en pause
   const togglePause = () => {
@@ -357,7 +395,7 @@ export default function GamePage() {
       
       {/* Bouton de fin de partie */}
       <button 
-        onClick={() => endGame("Abandon")}
+        onClick={() => handleEndGame("Abandon")}
         className="absolute bottom-6 mx-auto mt-4 px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-lg flex items-center cursor-pointer"
       >
         <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
