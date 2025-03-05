@@ -274,16 +274,14 @@ export default function GamePage() {
       return;
     }
     
-    // Mise à jour de la position de la balle avec un ajustement pour le centrage
-    // La position de la balle est son coin supérieur gauche, il faut ajouter la moitié de sa taille
-    // pour obtenir le centre
+    // Calcul de la position de la balle avec ajustement pour le centrage
     const ballXPercent = ((gameData.ballX + gameData.ballSize / 2) / gridWidth) * 100;
     const ballYPercent = ((gameData.ballY + gameData.ballSize / 2) / gridHeight) * 100;
-    
+
     // Limiter les valeurs entre 0 et 100 pour éviter que les éléments sortent de l'écran
     const clampedBallX = Math.max(0, Math.min(100, ballXPercent));
     const clampedBallY = Math.max(0, Math.min(100, ballYPercent));
-    
+
     setBallPosition({
       x: clampedBallX,
       y: clampedBallY
@@ -291,9 +289,8 @@ export default function GamePage() {
     setBallSize(gameData.ballSize);
 
     const paddleWidthPercent = (gameData.paddleWidth / gridSize.width) * 100;
-    
+
     // Mise à jour de la position et taille des raquettes
-    // Pour les raquettes, on doit ajuster la position Y pour le centrage vertical
     const leftPaddleXPercent = (gameData.paddleLeftX / gridSize.width) * 100;
     const leftPaddleYPercent = ((gameData.paddleLeftY + gameData.paddleLeftSize / 2) / gridHeight) * 100;
         
@@ -304,7 +301,11 @@ export default function GamePage() {
       width: gameData.paddleWidth
     });
         
-    const rightPaddleXPercent = (gameData.paddleRightX / gridWidth) * 100;
+    // Raquette droite - Ajouter une limitation pour s'assurer que la raquette reste visible
+    const rightPaddleXPercent = Math.min(
+      (gameData.paddleRightX / gridWidth) * 100,
+      100 - paddleWidthPercent // Assurer que le bord droit ne dépasse pas 100%
+    );
     const rightPaddleYPercent = ((gameData.paddleRightY + gameData.paddleRightSize / 2) / gridHeight) * 100;
         
     setRightPaddle({
@@ -313,7 +314,6 @@ export default function GamePage() {
       size: gameData.paddleRightSize,
       width: gameData.paddleWidth
     });
-    
   }, [gridSize, scoreLeft, scoreRight, handleEndGame]);
   
   // Calcul des dimensions réelles des éléments en fonction de la taille du terrain affiché
