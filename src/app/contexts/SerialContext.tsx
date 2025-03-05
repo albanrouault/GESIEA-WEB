@@ -18,7 +18,7 @@ type SerialContextType = {
   errorMessage: string;
   baudRate: number;
   logs: LogEntry[];
-  gameStatus: 'none' | 'running' | 'paused';
+  gameStatus: 'none' | 'running' | 'paused' | 'finished';
   receivedData: string;
   addLog: (entry: LogEntry) => void;
   setBaudRate: (rate: number) => void;
@@ -80,7 +80,7 @@ export const SerialProvider = ({ children }: SerialProviderProps) => {
   const [baudRate, setBaudRate] = useState(115200);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [buffer, setBuffer] = useState("");
-  const [gameStatus, setGameStatus] = useState<'none' | 'running' | 'paused'>('none');
+  const [gameStatus, setGameStatus] = useState<'none' | 'running' | 'paused' | 'finished'>('none');
   const [receivedData, setReceivedData] = useState("");
 
   // Fonction pour ajouter un log
@@ -109,6 +109,9 @@ export const SerialProvider = ({ children }: SerialProviderProps) => {
           break;
         case 2:
           setGameStatus('paused');
+          break;
+        case 3:
+          setGameStatus('finished');
           break;
         default:
           console.warn('Statut de jeu inconnu:', status);
