@@ -91,7 +91,7 @@ export default function GamePage() {
   }, []);
 
   // Fonction pour terminer le jeu et naviguer vers la page de fin
-  const handleEndGame = useCallback((winner: string) => {
+  const handleEndGame = useCallback((winner: string, p1Points: number, p2Points: number) => {
     // Éviter les appels multiples
     if (isEnding) return;
     setIsEnding(true);
@@ -103,15 +103,21 @@ export default function GamePage() {
     const seconds = Math.floor((durationMs % 60000) / 1000);
     const duration = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
     
+    console.log("Fin de partie - Scores reçus du microcontrôleur:", { p1Points, p2Points });
+    
     // Sauvegarder les résultats dans localStorage pour la page de fin
     localStorage.setItem("winner", winner);
     localStorage.setItem("duration", duration);
     localStorage.setItem("exchanges", exchanges.toString());
-    localStorage.setItem("finalScore", `${scoreLeft}-${scoreRight}`);
+    localStorage.setItem("finalScore", `${p1Points}-${p2Points}`);
     
     // Ajouter les scores individuels dans le localStorage
-    localStorage.setItem("player1Points", scoreLeft.toString());
-    localStorage.setItem("player2Points", scoreRight.toString());
+    localStorage.setItem("player1Points", p1Points.toString());
+    localStorage.setItem("player2Points", p2Points.toString());
+    
+    // Mettre à jour l'état des scores pour l'affichage actuel
+    setScoreLeft(p1Points);
+    setScoreRight(p2Points);
     
     // Envoyer la commande de fin de jeu au STM32
     if (isConnected) {
@@ -125,12 +131,12 @@ export default function GamePage() {
       router.push("/finish");
     }, 300);
     
-  }, [exchanges, isConnected, router, scoreLeft, scoreRight, sendCommand, isEnding]);
+  }, [exchanges, isConnected, router, sendCommand, isEnding]);
 
   // Fonction pour confirmer la fin de partie
   const confirmEndGame = useCallback(() => {
     if (window.confirm("Êtes-vous sûr de vouloir terminer la partie ?")) {
-      handleEndGame("Abandon");
+      handleEndGame("Abandon", 0, 0);
     }
   }, [handleEndGame]);
 
@@ -220,7 +226,7 @@ export default function GamePage() {
       // Déterminer le gagnant (celui qui a le plus de points)
       const winner = gameData.player1Points > gameData.player2Points ? "Joueur 1" : 
                     (gameData.player2Points > gameData.player1Points ? "Joueur 2" : "Match nul");
-      handleEndGame(winner);
+      handleEndGame(winner, gameData.player1Points, gameData.player2Points);
       return;
     }
     
