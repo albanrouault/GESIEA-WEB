@@ -58,6 +58,7 @@ export default function GamePage() {
   const [isPaused, setIsPaused] = useState(false);
   const [gameStatus, setGameStatus] = useState(0); // 0: initial, 1: en cours, 2: pause, 3: fin de partie
   const [gameInitialized, setGameInitialized] = useState(false);
+  const [isEnding, setIsEnding] = useState(false);
   
   // Variables de configuration du jeu
   const [gridSize, setGridSize] = useState({ width: 400, height: 300 }); // Dimensions par défaut plus grandes
@@ -71,6 +72,10 @@ export default function GamePage() {
   const gameContainerRef = useRef<HTMLDivElement>(null);
   // Référence pour éviter les mises à jour multiples du score
   const lastScoresRef = useRef({ left: 0, right: 0 });
+  // Référence pour stocker les dimensions calculées pour éviter trop de re-calculs
+  const calculatedDimensionsRef = useRef<{ ballSize: number, paddleWidth: number }>({ ballSize: 10, paddleWidth: 12 });
+  // Référence pour vérifier si le jeu a déjà été initialisé
+  const initializedRef = useRef(false);
 
   // Charger les dimensions de la grille depuis le localStorage
   useEffect(() => {
@@ -87,6 +92,10 @@ export default function GamePage() {
 
   // Fonction pour terminer le jeu et naviguer vers la page de fin
   const handleEndGame = useCallback((winner: string) => {
+    // Éviter les appels multiples
+    if (isEnding) return;
+    setIsEnding(true);
+    
     // Calculer la durée du jeu
     const endTime = Date.now();
     const durationMs = endTime - startTimeRef.current;
@@ -106,12 +115,24 @@ export default function GamePage() {
     
     // Envoyer la commande de fin de jeu au STM32
     if (isConnected) {
-      sendCommand("game:stop");
+      sendCommand("game:stop").catch(err => {
+        console.error("Erreur lors de l'envoi de la commande de fin:", err);
+      });
     }
     
-    // Naviguer vers la page de fin
-    router.push("/finish");
-  }, [exchanges, isConnected, router, scoreLeft, scoreRight, sendCommand]);
+    // Petit délai avant la navigation pour s'assurer que les données sont bien enregistrées
+    setTimeout(() => {
+      router.push("/finish");
+    }, 300);
+    
+  }, [exchanges, isConnected, router, scoreLeft, scoreRight, sendCommand, isEnding]);
+
+  // Fonction pour confirmer la fin de partie
+  const confirmEndGame = useCallback(() => {
+    if (window.confirm("Êtes-vous sûr de vouloir terminer la partie ?")) {
+      handleEndGame("Abandon");
+    }
+  }, [handleEndGame]);
 
   // Fonction pour parser les données de jeu
   const parseGameData = useCallback((dataStr: string): GameData | null => {
@@ -176,13 +197,21 @@ export default function GamePage() {
         }
       }
     } catch (error) {
-      console.error("Erreur de parsing des données:", error);
+      console.error("Erreur de parsing des données:", error, dataStr);
     }
     return null;
   }, []);
 
   // Fonction pour mettre à jour l'interface avec les données du jeu
   const updateGameInterface = useCallback((gameData: GameData) => {
+    // Vérification de sécurité pour les données invalides
+    if (gameData.ballX === undefined || gameData.ballY === undefined || 
+        gameData.paddleLeftX === undefined || gameData.paddleLeftY === undefined || 
+        gameData.paddleRightX === undefined || gameData.paddleRightY === undefined) {
+      console.error("Données de jeu incomplètes:", gameData);
+      return;
+    }
+    
     // Mise à jour du statut - no matter if it's game:all or game:run
     setGameStatus(gameData.status);
     
@@ -205,7 +234,12 @@ export default function GamePage() {
         width: gameData.gridWidth,
         height: gameData.gridHeight
       });
-      setGameInitialized(true);
+      
+      // Marquer le jeu comme initialisé (uniquement la première fois)
+      if (!initializedRef.current) {
+        setGameInitialized(true);
+        initializedRef.current = true;
+      }
       
       // Initialiser les scores
       setScoreLeft(gameData.player1Points);
@@ -217,12 +251,14 @@ export default function GamePage() {
       };
     } else {
       // Update des scores si nécessaire (game:run)
-      if (scoreLeft !== gameData.player1Points && lastScoresRef.current.left !== gameData.player1Points) {
+      if (gameData.player1Points !== undefined && scoreLeft !== gameData.player1Points && 
+          lastScoresRef.current.left !== gameData.player1Points) {
         setScoreLeft(gameData.player1Points);
         lastScoresRef.current.left = gameData.player1Points;
         setExchanges(prev => prev + 1);
       }
-      if (scoreRight !== gameData.player2Points && lastScoresRef.current.right !== gameData.player2Points) {
+      if (gameData.player2Points !== undefined && scoreRight !== gameData.player2Points && 
+          lastScoresRef.current.right !== gameData.player2Points) {
         setScoreRight(gameData.player2Points);
         lastScoresRef.current.right = gameData.player2Points;
         setExchanges(prev => prev + 1);
@@ -232,67 +268,71 @@ export default function GamePage() {
     // Calcul des positions relatives en pourcentage pour l'affichage
     const { width: gridWidth, height: gridHeight } = gridSize;
     
+    // Protection contre les divisions par zéro
+    if (gridWidth <= 0 || gridHeight <= 0) {
+      console.error("Dimensions de la grille invalides:", gridSize);
+      return;
+    }
+    
     // Mise à jour de la position de la balle avec un ajustement pour le centrage
     // La position de la balle est son coin supérieur gauche, il faut ajouter la moitié de sa taille
     // pour obtenir le centre
     const ballXPercent = ((gameData.ballX + gameData.ballSize / 2) / gridWidth) * 100;
     const ballYPercent = ((gameData.ballY + gameData.ballSize / 2) / gridHeight) * 100;
     
+    // Limiter les valeurs entre 0 et 100 pour éviter que les éléments sortent de l'écran
+    const clampedBallX = Math.max(0, Math.min(100, ballXPercent));
+    const clampedBallY = Math.max(0, Math.min(100, ballYPercent));
+    
     setBallPosition({
-      x: ballXPercent,
-      y: ballYPercent
+      x: clampedBallX,
+      y: clampedBallY
     });
     setBallSize(gameData.ballSize);
     
     // Mise à jour de la position et taille des raquettes
     // Pour les raquettes, on doit ajuster la position Y pour le centrage vertical
+    const leftPaddleXPercent = (gameData.paddleLeftX / gridWidth) * 100;
+    const leftPaddleYPercent = ((gameData.paddleLeftY + gameData.paddleLeftSize / 2) / gridHeight) * 100;
+    
+    // Limiter les valeurs pour la raquette gauche
+    const clampedLeftPaddleX = Math.max(0, Math.min(100, leftPaddleXPercent));
+    const clampedLeftPaddleY = Math.max(0, Math.min(100, leftPaddleYPercent));
+    
     setLeftPaddle({
-      x: (gameData.paddleLeftX / gridWidth) * 100,
-      y: ((gameData.paddleLeftY + gameData.paddleLeftSize / 2) / gridHeight) * 100,
+      x: clampedLeftPaddleX,
+      y: clampedLeftPaddleY,
       size: gameData.paddleLeftSize,
       width: gameData.paddleWidth
     });
     
+    const rightPaddleXPercent = (gameData.paddleRightX / gridWidth) * 100;
+    const rightPaddleYPercent = ((gameData.paddleRightY + gameData.paddleRightSize / 2) / gridHeight) * 100;
+    
+    // Limiter les valeurs pour la raquette droite
+    const clampedRightPaddleX = Math.max(0, Math.min(100, rightPaddleXPercent));
+    const clampedRightPaddleY = Math.max(0, Math.min(100, rightPaddleYPercent));
+    
     setRightPaddle({
-      x: (gameData.paddleRightX / gridWidth) * 100,
-      y: ((gameData.paddleRightY + gameData.paddleRightSize / 2) / gridHeight) * 100,
+      x: clampedRightPaddleX,
+      y: clampedRightPaddleY,
       size: gameData.paddleRightSize,
       width: gameData.paddleWidth
     });
     
-    // Log pour debug des positions
-    if (process.env.NODE_ENV === 'development') {
-      console.log("Grid Size:", gridSize);
-      console.log("Ball:", { 
-        rawX: gameData.ballX, 
-        rawY: gameData.ballY, 
-        pctX: ballXPercent, 
-        pctY: ballYPercent, 
-        size: gameData.ballSize 
-      });
-      console.log("Left Paddle:", { 
-        rawX: gameData.paddleLeftX, 
-        rawY: gameData.paddleLeftY, 
-        pctX: (gameData.paddleLeftX / gridWidth) * 100,
-        pctY: (gameData.paddleLeftY / gridHeight) * 100,
-        size: gameData.paddleLeftSize 
-      });
-      console.log("Right Paddle:", { 
-        rawX: gameData.paddleRightX, 
-        rawY: gameData.paddleRightY, 
-        pctX: (gameData.paddleRightX / gridWidth) * 100,
-        pctY: (gameData.paddleRightY / gridHeight) * 100,
-        size: gameData.paddleRightSize 
-      });
-    }
   }, [gridSize, scoreLeft, scoreRight, handleEndGame]);
   
   // Calcul des dimensions réelles des éléments en fonction de la taille du terrain affiché
   const calculateRealDimensions = useCallback(() => {
-    if (!gameContainerRef.current) return { ballSize: 10, paddleWidth: 12 };
+    if (!gameContainerRef.current) return calculatedDimensionsRef.current;
     
     const containerWidth = gameContainerRef.current.clientWidth;
     const containerHeight = gameContainerRef.current.clientHeight;
+    
+    // Ne recalculer que si les dimensions ont changé significativement
+    if (containerWidth === 0 || containerHeight === 0) {
+      return calculatedDimensionsRef.current;
+    }
     
     // Facteur d'échelle basé sur la taille du conteneur
     const widthScale = containerWidth / gridSize.width;
@@ -305,33 +345,41 @@ export default function GamePage() {
     // La largeur des raquettes est spécifiée en unités absolues dans le microcontrôleur
     const paddlePixelWidth = Math.max(8, Math.round(leftPaddle.width * widthScale));
 
-    console.log("Dimensions réelles:", { ballSize: ballPixelSize, paddleWidth: paddlePixelWidth });
-    
-    return {
+    // Mettre à jour la référence
+    calculatedDimensionsRef.current = {
       ballSize: ballPixelSize,
       paddleWidth: paddlePixelWidth
     };
+    
+    return calculatedDimensionsRef.current;
   }, [ballSize, gridSize.width, gridSize.height, leftPaddle.width]);
   
   // Écouter les données reçues du port série
   useEffect(() => {
     if (!receivedData || receivedData === lastReceivedDataRef.current) return;
     
-    // Mettre à jour la référence
-    lastReceivedDataRef.current = receivedData;
-    
-    // Traiter chaque ligne des données reçues
-    const lines = receivedData.split("\r\n").filter(line => line.trim() !== "");
-    
-    // Prendre la dernière ligne qui correspond à un message de jeu
-    const gameLines = lines.filter(line => line.startsWith("game:"));
-    if (gameLines.length > 0) {
-      const lastGameLine = gameLines[gameLines.length - 1];
-      const gameData = parseGameData(lastGameLine);
+    try {
+      // Mettre à jour la référence
+      lastReceivedDataRef.current = receivedData;
       
-      if (gameData) {
-        updateGameInterface(gameData);
+      // Traiter chaque ligne des données reçues
+      const lines = receivedData.split(/\r\n|\n/).filter(line => line.trim() !== "");
+      
+      // Prendre la dernière ligne qui correspond à un message de jeu
+      const gameLines = lines.filter(line => 
+        line.startsWith("game:all:") || line.startsWith("game:run:")
+      );
+      
+      if (gameLines.length > 0) {
+        const lastGameLine = gameLines[gameLines.length - 1];
+        const gameData = parseGameData(lastGameLine);
+        
+        if (gameData) {
+          updateGameInterface(gameData);
+        }
       }
+    } catch (error) {
+      console.error("Erreur lors du traitement des données reçues:", error);
     }
   }, [receivedData, parseGameData, updateGameInterface]);
 
@@ -340,12 +388,15 @@ export default function GamePage() {
     const handleResize = () => {
       // Rafraîchir les dimensions
       if (gameContainerRef.current) {
-        const { ballSize: newBallSize } = calculateRealDimensions();
-        setBallSize(newBallSize);
+        calculateRealDimensions();
       }
     };
     
     window.addEventListener('resize', handleResize);
+    
+    // Calculer les dimensions initiales
+    handleResize();
+    
     return () => {
       window.removeEventListener('resize', handleResize);
     };
@@ -375,11 +426,14 @@ export default function GamePage() {
     
     return () => {
       clearInterval(timer);
+      // Ne pas envoyer game:stop ici pour éviter d'arrêter le jeu lors des navigations ou rechargements
     };
   }, [isConnected, router, isPaused, gameStatus]);
 
   // Fonction pour mettre le jeu en pause
-  const togglePause = () => {
+  const togglePause = useCallback(() => {
+    if (isEnding) return;
+    
     const newPausedState = !isPaused;
     setIsPaused(newPausedState);
     
@@ -391,9 +445,13 @@ export default function GamePage() {
     }
     
     if (isConnected) {
-      sendCommand(newPausedState ? "game:pause" : "game:resume");
+      sendCommand(newPausedState ? "game:pause" : "game:resume").catch(err => {
+        console.error("Erreur lors de la mise en pause/reprise:", err);
+        // Rétablir l'état précédent en cas d'échec
+        setIsPaused(!newPausedState);
+      });
     }
-  };
+  }, [isPaused, isConnected, sendCommand, isEnding]);
 
   // Récupérer les dimensions réelles des éléments
   const { ballSize: realBallSize, paddleWidth: realPaddleWidth } = calculateRealDimensions();
@@ -431,7 +489,8 @@ export default function GamePage() {
         
         <button 
           onClick={togglePause} 
-          className="bg-black bg-opacity-50 backdrop-blur-sm p-2 rounded-lg hover:bg-opacity-70 transition-all cursor-pointer"
+          className="bg-black bg-opacity-50 backdrop-blur-sm p-2 rounded-lg hover:bg-opacity-70 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={isEnding}
         >
           {isPaused ? (
             <svg className="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -508,13 +567,14 @@ export default function GamePage() {
       
       {/* Bouton de fin de partie */}
       <button 
-        onClick={() => handleEndGame("Abandon")}
-        className="absolute bottom-6 mx-auto mt-4 px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-lg flex items-center cursor-pointer"
+        onClick={confirmEndGame}
+        disabled={isEnding}
+        className="absolute bottom-6 mx-auto mt-4 px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-lg flex items-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
         </svg>
-        Terminer la partie
+        {isEnding ? "Finalisation..." : "Terminer la partie"}
       </button>
       
       {/* Overlay de pause */}
@@ -527,7 +587,8 @@ export default function GamePage() {
             <h2 className="text-3xl font-bold text-white mb-4">Jeu en pause</h2>
             <button 
               onClick={togglePause}
-              className="px-6 py-3 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg shadow-lg flex items-center cursor-pointer"
+              disabled={isEnding}
+              className="px-6 py-3 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg shadow-lg flex items-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path>

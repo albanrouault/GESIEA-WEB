@@ -13,6 +13,7 @@ export default function LaunchPage() {
   const [paddleSize, setPaddleSize] = useState(5);
   const [paddleSpeed, setPaddleSpeed] = useState(5);
   const [loading, setLoading] = useState(true);
+  const [launchingGame, setLaunchingGame] = useState(false);
   const { isConnected, sendCommand } = useSerial();
   
   // Dimensions de base pour le terrain (valeurs par défaut plus élevées)
@@ -30,6 +31,15 @@ export default function LaunchPage() {
   
   // Calculer les dimensions du terrain en fonction de la taille d'affichage
   const calculateTerrainDimensions = () => {
+    // Vérifier que window est disponible (côté client)
+    if (typeof window === 'undefined') {
+      return {
+        width: BASE_GRID_WIDTH,
+        height: BASE_GRID_HEIGHT,
+        aspectRatio: BASE_GRID_WIDTH / BASE_GRID_HEIGHT
+      };
+    }
+    
     // Obtenir les dimensions réelles du composant qui contiendra le jeu
     // max-w-5xl = 64rem = 1024px max-width
     const maxWidth = 1024;
@@ -73,17 +83,22 @@ export default function LaunchPage() {
       setLoading(false);
       
       // Récupérer les paramètres stockés s'ils existent
-      const storedWinPoints = localStorage.getItem("winPoints");
-      const storedBallSpeed = localStorage.getItem("ballSpeed");
-      const storedBallSize = localStorage.getItem("ballSize");
-      const storedPaddleSize = localStorage.getItem("paddleSize");
-      const storedPaddleSpeed = localStorage.getItem("paddleSpeed");
-      
-      if (storedWinPoints) setWinPoints(parseInt(storedWinPoints));
-      if (storedBallSpeed) setBallSpeed(parseInt(storedBallSpeed));
-      if (storedBallSize) setBallSize(parseInt(storedBallSize));
-      if (storedPaddleSize) setPaddleSize(parseInt(storedPaddleSize));
-      if (storedPaddleSpeed) setPaddleSpeed(parseInt(storedPaddleSpeed));
+      try {
+        const storedWinPoints = localStorage.getItem("winPoints");
+        const storedBallSpeed = localStorage.getItem("ballSpeed");
+        const storedBallSize = localStorage.getItem("ballSize");
+        const storedPaddleSize = localStorage.getItem("paddleSize");
+        const storedPaddleSpeed = localStorage.getItem("paddleSpeed");
+        
+        if (storedWinPoints) setWinPoints(parseInt(storedWinPoints));
+        if (storedBallSpeed) setBallSpeed(parseInt(storedBallSpeed));
+        if (storedBallSize) setBallSize(parseInt(storedBallSize));
+        if (storedPaddleSize) setPaddleSize(parseInt(storedPaddleSize));
+        if (storedPaddleSpeed) setPaddleSpeed(parseInt(storedPaddleSpeed));
+      } catch (error) {
+        console.error("Erreur lors de la récupération des paramètres:", error);
+        // Utiliser des valeurs par défaut
+      }
     }
   }, [isConnected, router]);
 
@@ -154,6 +169,10 @@ export default function LaunchPage() {
 
   // Démarrage du jeu
   const handleLaunchGame = async () => {
+    // Éviter les lancements multiples
+    if (launchingGame) return;
+    setLaunchingGame(true);
+    
     try {
       // Calculer les dimensions réelles du terrain
       const dimensions = calculateTerrainDimensions();
@@ -168,10 +187,6 @@ export default function LaunchPage() {
       console.log("Dimensions du terrain:", dimensions);
       console.log("Paramètres adaptés:", scaledParams);
       
-      // Envoi de la trame formatée au STM32 avec le nouveau format
-      // Format: game:start:largeurTerrain:hauteurTerrain:pointsGagnants:vitesseBalle:tailleBalle:vitesseRaquette:tailleRaquette:zoneGauche:zoneDroite
-      await sendCommand(`game:start:${dimensions.width}:${dimensions.height}:${winPoints}:${scaledParams.ballSpeed}:${scaledParams.ballSize}:${scaledParams.paddleSpeed}:${scaledParams.paddleSize}:${leftZoneWidth}:${rightZoneWidth}`);
-      
       // Stocker les paramètres originaux (non ajustés) pour le jeu
       localStorage.setItem("winPoints", winPoints.toString());
       localStorage.setItem("ballSpeed", ballSpeed.toString());
@@ -183,11 +198,18 @@ export default function LaunchPage() {
       localStorage.setItem("gridWidth", dimensions.width.toString());
       localStorage.setItem("gridHeight", dimensions.height.toString());
       
-      // Naviguer vers la page de jeu
-      router.push("/game");
+      // Envoi de la trame formatée au STM32 avec le nouveau format
+      // Format: game:start:largeurTerrain:hauteurTerrain:pointsGagnants:vitesseBalle:tailleBalle:vitesseRaquette:tailleRaquette:zoneGauche:zoneDroite
+      await sendCommand(`game:start:${dimensions.width}:${dimensions.height}:${winPoints}:${scaledParams.ballSpeed}:${scaledParams.ballSize}:${scaledParams.paddleSpeed}:${scaledParams.paddleSize}:${leftZoneWidth}:${rightZoneWidth}`);
+      
+      // Naviguer vers la page de jeu après un léger délai
+      setTimeout(() => {
+        router.push("/game");
+      }, 300);
     } catch (error) {
       console.error("Erreur lors du lancement du jeu:", error);
       alert("Une erreur est survenue lors du lancement du jeu. Vérifiez la connexion avec l'appareil.");
+      setLaunchingGame(false);
     }
   };
   
@@ -228,14 +250,26 @@ export default function LaunchPage() {
         <div className="mb-8">
           <button 
             onClick={handleLaunchGame}
-            disabled={!isConnected}
-            className={`w-full py-4 px-6 rounded-lg flex items-center justify-center ${!isConnected ? 'bg-opacity-50 cursor-not-allowed' : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 transform hover:scale-105 transition-all cursor-pointer'} text-white shadow-lg text-lg font-bold`}
+            disabled={!isConnected || launchingGame}
+            className={`w-full py-4 px-6 rounded-lg flex items-center justify-center ${!isConnected || launchingGame ? 'bg-opacity-50 cursor-not-allowed' : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 transform hover:scale-105 transition-all cursor-pointer'} text-white shadow-lg text-lg font-bold`}
           >
-            <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path>
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-            </svg>
-            Lancer le jeu
+            {launchingGame ? (
+              <>
+                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Lancement...
+              </>
+            ) : (
+              <>
+                <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                Lancer le jeu
+              </>
+            )}
           </button>
         </div>
         
@@ -261,7 +295,7 @@ export default function LaunchPage() {
             onChange={(e) => setWinPoints(Number(e.target.value))} 
             className="w-full appearance-none opacity-0 absolute cursor-pointer"
             style={{margin: 0, height: '8px', top: 'auto'}}
-            disabled={!isConnected}
+            disabled={!isConnected || launchingGame}
           />
           <div className="flex justify-between text-gray-400 text-xs mt-1">
             <span>1 point</span>
@@ -291,7 +325,7 @@ export default function LaunchPage() {
             onChange={(e) => setBallSpeed(Number(e.target.value))} 
             className="w-full appearance-none opacity-0 absolute cursor-pointer"
             style={{margin: 0, height: '8px', top: 'auto'}}
-            disabled={!isConnected}
+            disabled={!isConnected || launchingGame}
           />
           <div className="flex justify-between text-gray-400 text-xs mt-1">
             <span>Lent</span>
@@ -321,7 +355,7 @@ export default function LaunchPage() {
             onChange={(e) => setBallSize(Number(e.target.value))} 
             className="w-full appearance-none opacity-0 absolute cursor-pointer"
             style={{margin: 0, height: '8px', top: 'auto'}}
-            disabled={!isConnected}
+            disabled={!isConnected || launchingGame}
           />
           <div className="flex justify-between text-gray-400 text-xs mt-1">
             <span>Petite</span>
@@ -351,7 +385,7 @@ export default function LaunchPage() {
             onChange={(e) => setPaddleSpeed(Number(e.target.value))} 
             className="w-full appearance-none opacity-0 absolute cursor-pointer"
             style={{margin: 0, height: '8px', top: 'auto'}}
-            disabled={!isConnected}
+            disabled={!isConnected || launchingGame}
           />
           <div className="flex justify-between text-gray-400 text-xs mt-1">
             <span>Lente</span>
@@ -381,7 +415,7 @@ export default function LaunchPage() {
             onChange={(e) => setPaddleSize(Number(e.target.value))} 
             className="w-full appearance-none opacity-0 absolute cursor-pointer"
             style={{margin: 0, height: '8px', top: 'auto'}}
-            disabled={!isConnected}
+            disabled={!isConnected || launchingGame}
           />
           <div className="flex justify-between text-gray-400 text-xs mt-1">
             <span>Petite</span>
@@ -393,7 +427,8 @@ export default function LaunchPage() {
         <div>
           <button 
             onClick={backToConnection}
-            className="w-full py-3 px-6 rounded-lg bg-gray-700 hover:bg-gray-600 text-white flex items-center justify-center cursor-pointer"
+            disabled={launchingGame}
+            className="w-full py-3 px-6 rounded-lg bg-gray-700 hover:bg-gray-600 text-white flex items-center justify-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>

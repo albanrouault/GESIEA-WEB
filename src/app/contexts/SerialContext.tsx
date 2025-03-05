@@ -71,6 +71,9 @@ export const SerialProvider = ({ children }: SerialProviderProps) => {
   // Référence pour le timeout de sécurité
   const safetyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
+  // Référence pour les opérations en cours
+  const operationInProgressRef = useRef<boolean>(false);
+  
   // États
   const [isClient, setIsClient] = useState(false);
   const [isSerialSupported, setIsSerialSupported] = useState(false);
@@ -97,24 +100,30 @@ export const SerialProvider = ({ children }: SerialProviderProps) => {
   // Fonction pour traiter les données du jeu
   const processGameData = (message: string) => {
     if (message.startsWith('game:all:') || message.startsWith('game:run:')) {
-      const parts = message.split(':')[2].split(',');
-      const status = parseInt(parts[0]);
-      
-      switch (status) {
-        case 0:
-          setGameStatus('none');
-          break;
-        case 1:
-          setGameStatus('running');
-          break;
-        case 2:
-          setGameStatus('paused');
-          break;
-        case 3:
-          setGameStatus('finished');
-          break;
-        default:
-          console.warn('Statut de jeu inconnu:', status);
+      try {
+        const parts = message.split(':')[2].split(',');
+        if (parts.length < 1) return;
+        
+        const status = parseInt(parts[0]);
+        
+        switch (status) {
+          case 0:
+            setGameStatus('none');
+            break;
+          case 1:
+            setGameStatus('running');
+            break;
+          case 2:
+            setGameStatus('paused');
+            break;
+          case 3:
+            setGameStatus('finished');
+            break;
+          default:
+            console.warn('Statut de jeu inconnu:', status);
+        }
+      } catch (error) {
+        console.error("Erreur lors du traitement des données de jeu:", error, message);
       }
     }
   };
@@ -188,13 +197,33 @@ export const SerialProvider = ({ children }: SerialProviderProps) => {
         // Tenter de déconnecter proprement
         try {
           if (readerRef.current) {
-            readerRef.current.cancel();
-            readerRef.current.releaseLock();
+            try {
+              readerRef.current.cancel();
+            } catch(e) {
+              console.error("Erreur lors de l'annulation du reader:", e);
+            }
+            
+            try {
+              readerRef.current.releaseLock();
+            } catch(e) {
+              console.error("Erreur lors de la libération du lock du reader:", e);
+            }
           }
+          
           if (writerRef.current) {
-            writerRef.current.close();
-            writerRef.current.releaseLock();
+            try {
+              writerRef.current.close();
+            } catch(e) {
+              console.error("Erreur lors de la fermeture du writer:", e);
+            }
+            
+            try {
+              writerRef.current.releaseLock();
+            } catch(e) {
+              console.error("Erreur lors de la libération du lock du writer:", e);
+            }
           }
+          
           portRef.current.close();
         } catch (error) {
           console.error("Erreur lors du nettoyage avant fermeture:", error);
@@ -276,28 +305,43 @@ export const SerialProvider = ({ children }: SerialProviderProps) => {
       readLoopActiveRef.current = false;
       
       if (readerRef.current) {
+        try { readerRef.current.cancel(); } catch (e) {}
         try { readerRef.current.releaseLock(); } catch (e) {}
         readerRef.current = null;
       }
       
       if (writerRef.current) {
+        try { writerRef.current.close(); } catch (e) {}
         try { writerRef.current.releaseLock(); } catch (e) {}
         writerRef.current = null;
       }
       
-      portRef.current = null;
+      if (portRef.current) {
+        try { portRef.current.close(); } catch (e) {}
+        portRef.current = null;
+      }
     } catch (e) {
       console.error("Erreur lors de la déconnexion forcée:", e);
     } finally {
       // Nettoyer l'état
       setIsConnected(false);
       setIsLoading(false);
+      operationInProgressRef.current = false;
       localStorage.setItem("isConnected", "false");
     }
   };
 
   // Fonction pour se connecter au port série
   const connect = async () => {
+    // Vérifier si une opération est déjà en cours
+    if (operationInProgressRef.current) {
+      console.log("Une opération est déjà en cours, connexion annulée");
+      return;
+    }
+    
+    // Marquer qu'une opération est en cours
+    operationInProgressRef.current = true;
+    
     // Réinitialiser tout timeout de sécurité existant
     if (safetyTimeoutRef.current) {
       clearTimeout(safetyTimeoutRef.current);
@@ -315,10 +359,18 @@ export const SerialProvider = ({ children }: SerialProviderProps) => {
     
     if (isConnected) {
       // Si déjà connecté, déconnectons d'abord
-      await disconnect();
+      try {
+        await disconnect();
+      } catch (error) {
+        console.error("Erreur lors de la déconnexion préalable:", error);
+        // Continuer malgré l'erreur
+      }
     }
     
-    if (!isSerialSupported) return;
+    if (!isSerialSupported) {
+      operationInProgressRef.current = false;
+      return;
+    }
     
     try {
       setIsLoading(true);
@@ -382,6 +434,7 @@ export const SerialProvider = ({ children }: SerialProviderProps) => {
         } catch (e) {
           console.error("Erreur lors de la fermeture du port après échec:", e);
         }
+        portRef.current = null;
       }
     } finally {
       // Nettoyer le timeout de sécurité
@@ -390,12 +443,25 @@ export const SerialProvider = ({ children }: SerialProviderProps) => {
         safetyTimeoutRef.current = null;
       }
       setIsLoading(false);
+      operationInProgressRef.current = false;
     }
   };
 
   // Fonction pour se déconnecter du port série
   const disconnect = async () => {
-    if (!portRef.current || !isConnected) return Promise.resolve();
+    // Vérifier si une opération est déjà en cours
+    if (operationInProgressRef.current) {
+      console.log("Une opération est déjà en cours, déconnexion reportée");
+      return Promise.resolve();
+    }
+    
+    // Marquer qu'une opération est en cours
+    operationInProgressRef.current = true;
+    
+    if (!portRef.current || !isConnected) {
+      operationInProgressRef.current = false;
+      return Promise.resolve();
+    }
     
     // Arrêter la boucle de lecture
     readLoopActiveRef.current = false;
@@ -468,6 +534,7 @@ export const SerialProvider = ({ children }: SerialProviderProps) => {
               localStorage.setItem("isConnected", "false");
               setIsLoading(false);
               disconnectTimeoutRef.current = null;
+              operationInProgressRef.current = false;
               resolve();
             }
           }, 300);
@@ -477,12 +544,14 @@ export const SerialProvider = ({ children }: SerialProviderProps) => {
         setIsConnected(false);
         localStorage.setItem("isConnected", "false");
         setIsLoading(false);
+        operationInProgressRef.current = false;
         return Promise.resolve();
       }
     } catch (error: any) {
       console.error("Erreur lors de la déconnexion du port:", error);
       setErrorMessage("Erreur lors de la déconnexion: " + (error.message || ""));
       setIsLoading(false);
+      operationInProgressRef.current = false;
       return Promise.reject(error);
     } finally {
       // Nettoyer le timeout de sécurité
@@ -510,6 +579,13 @@ export const SerialProvider = ({ children }: SerialProviderProps) => {
     } catch (error: any) {
       console.error("Erreur lors de l'envoi de la commande:", error);
       setErrorMessage("Erreur d'envoi: " + (error.message || ""));
+      
+      // Si l'erreur indique que la connexion est perdue, tenter de se reconnecter
+      if (error.message && (error.message.includes("disconnected") || error.message.includes("closed"))) {
+        setIsConnected(false);
+        localStorage.setItem("isConnected", "false");
+      }
+      
       return Promise.reject(error);
     }
   };
@@ -547,4 +623,4 @@ export const SerialProvider = ({ children }: SerialProviderProps) => {
 };
 
 // Hook personnalisé pour utiliser le contexte
-export const useSerial = () => useContext(SerialContext); 
+export const useSerial = () => useContext(SerialContext);

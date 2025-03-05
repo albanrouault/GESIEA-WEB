@@ -8,40 +8,59 @@ import DebugConsole from "@/components/DebugConsole";
 export default function FinishPage() {
   const router = useRouter();
   const [gameData, setGameData] = useState({
-    winner: "Joueur",
+    winner: "Joueur 1", // Valeur par défaut
     duration: "00:00",
     finalScore: "0-0",
     player1Points: 0,
     player2Points: 0
   });
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasData, setHasData] = useState(false);
+  const { isConnected } = useSerial();
   
   useEffect(() => {
+    // Vérifier si l'utilisateur est connecté
+    if (!isConnected) {
+      router.push("/connexion");
+      return;
+    }
+    
     // Récupérer les données du jeu depuis localStorage
     if (typeof window !== "undefined") {
-      const winner = localStorage.getItem("winner");
-      const duration = localStorage.getItem("duration");
-      const finalScore = localStorage.getItem("finalScore");
-      const player1Points = localStorage.getItem("player1Points");
-      const player2Points = localStorage.getItem("player2Points");
-      
-      // Si les données ne sont pas disponibles, rediriger vers la page de lancement
-      if (!winner || !duration || !finalScore) {
-        router.push("/launch");
-        return;
+      try {
+        const winner = localStorage.getItem("winner");
+        const duration = localStorage.getItem("duration");
+        const finalScore = localStorage.getItem("finalScore");
+        const player1Points = localStorage.getItem("player1Points");
+        const player2Points = localStorage.getItem("player2Points");
+        
+        // Si les données essentielles sont disponibles
+        if (winner && duration && finalScore) {
+          setGameData({
+            winner: winner,
+            duration: duration,
+            finalScore: finalScore,
+            player1Points: parseInt(player1Points || "0", 10),
+            player2Points: parseInt(player2Points || "0", 10)
+          });
+          setHasData(true);
+        } else {
+          // Si les données sont manquantes, rediriger vers la page de lancement après un court délai
+          setTimeout(() => {
+            router.push("/launch");
+          }, 1000);
+        }
+      } catch (error) {
+        console.error("Erreur lors de la récupération des données de jeu:", error);
+        // En cas d'erreur, rediriger également
+        setTimeout(() => {
+          router.push("/launch");
+        }, 1000);
+      } finally {
+        setIsLoading(false);
       }
-      
-      setGameData({
-        winner: winner,
-        duration: duration,
-        finalScore: finalScore,
-        player1Points: parseInt(player1Points || "0", 10),
-        player2Points: parseInt(player2Points || "0", 10)
-      });
-
-      // On ne supprime plus les données immédiatement pour éviter les redirections involontaires
-      // La suppression sera effectuée lors des actions explicites de l'utilisateur (boutons)
     }
-  }, [router]);
+  }, [router, isConnected]);
   
   const handleReplay = () => {
     // Nettoyer les données du localStorage avant de naviguer
@@ -62,6 +81,39 @@ export default function FinishPage() {
     localStorage.removeItem("player2Points");
     router.push("/connexion");
   };
+  
+  // Afficher un écran de chargement pendant la récupération des données
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-blue-800 to-purple-900 flex flex-col items-center justify-center p-6">
+        <div className="animate-pulse flex flex-col items-center">
+          <div className="w-16 h-16 bg-cyan-500 rounded-full mb-4"></div>
+          <p className="text-white text-xl">Chargement des résultats...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  // Afficher un message si aucune donnée n'est disponible
+  if (!hasData) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-blue-800 to-purple-900 flex flex-col items-center justify-center p-6">
+        <div className="max-w-md w-full bg-black bg-opacity-30 backdrop-blur-md rounded-2xl shadow-2xl p-8 text-center">
+          <svg className="w-16 h-16 text-yellow-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+          </svg>
+          <h2 className="text-2xl font-bold text-white mb-4">Aucune donnée de jeu disponible</h2>
+          <p className="text-gray-300 mb-6">Redirection vers la page de lancement...</p>
+          <button 
+            onClick={() => router.push("/launch")}
+            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-lg"
+          >
+            Aller maintenant
+          </button>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-blue-800 to-purple-900 flex flex-col items-center justify-center p-6">
@@ -187,4 +239,4 @@ export default function FinishPage() {
       <DebugConsole />
     </div>
   );
-} 
+}
