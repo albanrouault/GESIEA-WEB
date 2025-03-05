@@ -16,9 +16,9 @@ export default function LaunchPage() {
   const [launchingGame, setLaunchingGame] = useState(false);
   const { isConnected, sendCommand } = useSerial();
   
-  // Dimensions de base pour le terrain (valeurs par défaut plus élevées)
-  const BASE_GRID_WIDTH = 400;
-  const BASE_GRID_HEIGHT = 300;
+  // Dimensions de base pour le terrain (valeurs par défaut légèrement réduites mais toujours rectangulaires)
+  const BASE_GRID_WIDTH = 1000;
+  const BASE_GRID_HEIGHT = 600;
   
   // Facteur de mise à l'échelle pour les valeurs des sliders
   // (rapport entre valeur max du slider et paramètre attendu)
@@ -41,8 +41,8 @@ export default function LaunchPage() {
     }
     
     // Obtenir les dimensions réelles du composant qui contiendra le jeu
-    // max-w-5xl = 64rem = 1024px max-width
-    const maxWidth = 1024;
+    // max-w-7xl = 80rem = 1280px max-width
+    const maxWidth = 1280;
     // Obtenir la hauteur de la fenêtre
     const windowHeight = window.innerHeight;
     // Calculer la hauteur du terrain (80vh)
@@ -51,8 +51,8 @@ export default function LaunchPage() {
     // Calculer la largeur réelle du terrain (en respectant les contraintes)
     const terrainWidth = Math.min(maxWidth, window.innerWidth * 0.9);
     
-    // Définir un ratio d'aspect souhaité (4:3 est standard pour les jeux)
-    const aspectRatio = 4/3;
+    // Définir un ratio d'aspect souhaité (maintenu rectangulaire)
+    const aspectRatio = 5/3;
     
     // Calculer les dimensions finales en fonction de l'aspect ratio
     let finalWidth, finalHeight;
@@ -68,9 +68,9 @@ export default function LaunchPage() {
     }
     
     // Calculer les dimensions de la grille logique (plus grande pour plus de précision)
-    // Utilisons une base de 400x300 comme dimensions minimales
-    const gridWidth = Math.max(BASE_GRID_WIDTH, Math.round(finalWidth / 2));
-    const gridHeight = Math.max(BASE_GRID_HEIGHT, Math.round(finalHeight / 2));
+    // Utilisons des dimensions minimales plus grandes avec une hauteur proportionnellement plus grande
+    const gridWidth = Math.max(BASE_GRID_WIDTH, Math.round(finalWidth * 1.1));
+    const gridHeight = Math.max(BASE_GRID_HEIGHT, Math.round(finalHeight * 1.2));
     
     return { width: gridWidth, height: gridHeight, aspectRatio };
   };
@@ -111,7 +111,7 @@ export default function LaunchPage() {
   const scaleParameters = (dimensions: { width: number; height: number; aspectRatio?: number }) => {
     // Calcul des valeurs adaptées à la taille du terrain
     
-    // Base de référence: terrain de 400x300
+    // Base de référence: terrain de 1000x600 (dimensions légèrement réduites)
     const referenceWidth = BASE_GRID_WIDTH;
     const referenceHeight = BASE_GRID_HEIGHT;
     
@@ -120,19 +120,17 @@ export default function LaunchPage() {
     const heightRatio = dimensions.height / referenceHeight;
     
     // Calcul de la taille des raquettes (proportionnelle à la hauteur du terrain)
-    // Convertir la valeur du slider (1-10) en pourcentage de la hauteur du terrain
-    // Petite raquette = 10% de la hauteur, grande raquette = 35% de la hauteur
-    const minPaddlePercent = 10; // 10% de la hauteur pour slider = 1
-    const maxPaddlePercent = 35; // 35% de la hauteur pour slider = 10
+    // Pour un terrain plus rectangulaire, on garde des raquettes assez grandes
+    const minPaddlePercent = 13; // 13% de la hauteur pour slider = 1 (plus grand)
+    const maxPaddlePercent = 38; // 38% de la hauteur pour slider = 10 (plus grand)
     const paddleHeightPercent = minPaddlePercent + ((maxPaddlePercent - minPaddlePercent) * (paddleSize - 1) / 9);
     const scaledPaddleSize = Math.round((paddleHeightPercent / 100) * dimensions.height);
     
     // Calcul de la taille de la balle (proportionnelle à la plus petite dimension du terrain)
-    // Petite balle = 1.5% de la hauteur, grande balle = 5% de la hauteur
-    const minBallPercent = 1.5;
-    const maxBallPercent = 5;
+    const minBallPercent = 1.2; // Légèrement plus grand
+    const maxBallPercent = 4.0; // Légèrement plus grand
     const ballSizePercent = minBallPercent + ((maxBallPercent - minBallPercent) * (ballSize - 1) / 9);
-    const scaledBallSize = Math.max(3, Math.round((ballSizePercent / 100) * Math.min(dimensions.width, dimensions.height)));
+    const scaledBallSize = Math.max(5, Math.round((ballSizePercent / 100) * Math.min(dimensions.width, dimensions.height)));
     
     // Vitesse de la balle (ajustée en fonction de la taille du terrain)
     // La vitesse doit augmenter proportionnellement à la taille du terrain

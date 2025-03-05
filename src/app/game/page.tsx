@@ -61,7 +61,7 @@ export default function GamePage() {
   const [isEnding, setIsEnding] = useState(false);
   
   // Variables de configuration du jeu
-  const [gridSize, setGridSize] = useState({ width: 400, height: 300 }); // Dimensions par défaut plus grandes
+  const [gridSize, setGridSize] = useState({ width: 1000, height: 600 }); // Dimensions légèrement réduites mais toujours rectangulaires
   const [ballSize, setBallSize] = useState(2);
   
   // Référence pour le temps de départ
@@ -508,11 +508,11 @@ export default function GamePage() {
       {/* Zone de jeu */}
       <div 
         ref={gameContainerRef}
-        className="relative w-full max-w-5xl h-[80vh] border-4 border-cyan-500 bg-black bg-opacity-30 rounded-lg overflow-hidden shadow-[0_0_30px_rgba(6,182,212,0.5)]"
+        className="relative w-full max-w-7xl h-[82vh] border-4 border-cyan-500 bg-black bg-opacity-30 rounded-lg overflow-hidden shadow-[0_0_30px_rgba(6,182,212,0.5)]"
         style={{ 
           // Maintenir un ratio d'aspect en fonction des dimensions de la grille
           aspectRatio: `${gridSize.width / gridSize.height}`,
-          maxHeight: '80vh',
+          maxHeight: '82vh',
           width: 'auto'
         }}
       >
