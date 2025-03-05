@@ -60,13 +60,30 @@ export default function GamePage() {
   const [gameInitialized, setGameInitialized] = useState(false);
   
   // Variables de configuration du jeu
-  const [gridSize, setGridSize] = useState({ width: 100, height: 100 });
+  const [gridSize, setGridSize] = useState({ width: 400, height: 300 }); // Dimensions par défaut plus grandes
   const [ballSize, setBallSize] = useState(2);
   
   // Référence pour le temps de départ
   const startTimeRef = useRef(Date.now());
   // Référence pour stocker les dernières données reçues
   const lastReceivedDataRef = useRef("");
+  // Référence pour le conteneur de jeu
+  const gameContainerRef = useRef<HTMLDivElement>(null);
+  // Référence pour éviter les mises à jour multiples du score
+  const lastScoresRef = useRef({ left: 0, right: 0 });
+
+  // Charger les dimensions de la grille depuis le localStorage
+  useEffect(() => {
+    const storedWidth = localStorage.getItem("gridWidth");
+    const storedHeight = localStorage.getItem("gridHeight");
+    
+    if (storedWidth && storedHeight) {
+      setGridSize({
+        width: parseInt(storedWidth),
+        height: parseInt(storedHeight)
+      });
+    }
+  }, []);
 
   // Fonction pour terminer le jeu et naviguer vers la page de fin
   const handleEndGame = useCallback((winner: string) => {
@@ -193,14 +210,22 @@ export default function GamePage() {
       // Initialiser les scores
       setScoreLeft(gameData.player1Points);
       setScoreRight(gameData.player2Points);
+      // Mettre à jour la référence des derniers scores
+      lastScoresRef.current = {
+        left: gameData.player1Points,
+        right: gameData.player2Points
+      };
     } else {
       // Update des scores si nécessaire (game:run)
-      if (scoreLeft !== gameData.player1Points) {
+      // On vérifie aussi la référence pour éviter les mises à jour multiples
+      if (scoreLeft !== gameData.player1Points && lastScoresRef.current.left !== gameData.player1Points) {
         setScoreLeft(gameData.player1Points);
+        lastScoresRef.current.left = gameData.player1Points;
         setExchanges(prev => prev + 1);
       }
-      if (scoreRight !== gameData.player2Points) {
+      if (scoreRight !== gameData.player2Points && lastScoresRef.current.right !== gameData.player2Points) {
         setScoreRight(gameData.player2Points);
+        lastScoresRef.current.right = gameData.player2Points;
         setExchanges(prev => prev + 1);
       }
     }
@@ -233,6 +258,25 @@ export default function GamePage() {
     });
   }, [gridSize, scoreLeft, scoreRight, handleEndGame]);
 
+  // Calcul des dimensions réelles des éléments en fonction de la taille du terrain affiché
+  const calculateRealDimensions = useCallback(() => {
+    if (!gameContainerRef.current) return { ballSize: 10, paddleWidth: 12 };
+    
+    const containerWidth = gameContainerRef.current.clientWidth;
+    const containerHeight = gameContainerRef.current.clientHeight;
+    
+    // Calculer la taille de la balle en pixels
+    const ballPixelSize = Math.max(5, (ballSize / gridSize.width) * containerWidth);
+    
+    // Calculer la largeur des raquettes en pixels
+    const paddlePixelWidth = Math.max(8, (leftPaddle.width / gridSize.width) * containerWidth);
+    
+    return {
+      ballSize: ballPixelSize,
+      paddleWidth: paddlePixelWidth
+    };
+  }, [ballSize, gridSize.width, leftPaddle.width]);
+
   // Écouter les données reçues du port série
   useEffect(() => {
     if (!receivedData || receivedData === lastReceivedDataRef.current) return;
@@ -254,6 +298,22 @@ export default function GamePage() {
       }
     }
   }, [receivedData, parseGameData, updateGameInterface]);
+
+  // Recalculer les dimensions réelles quand la taille de la fenêtre change
+  useEffect(() => {
+    const handleResize = () => {
+      // Rafraîchir les dimensions
+      if (gameContainerRef.current) {
+        const { ballSize: newBallSize } = calculateRealDimensions();
+        setBallSize(newBallSize);
+      }
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [calculateRealDimensions]);
 
   // Vérifier la connexion et initialiser le jeu
   useEffect(() => {
@@ -298,6 +358,9 @@ export default function GamePage() {
       sendCommand(newPausedState ? "game:pause" : "game:resume");
     }
   };
+
+  // Récupérer les dimensions réelles des éléments
+  const { ballSize: realBallSize, paddleWidth: realPaddleWidth } = calculateRealDimensions();
 
   // Afficher un écran de chargement si le jeu n'est pas encore initialisé
   if (!gameInitialized && isConnected && gameStatus === 0) {
@@ -348,7 +411,16 @@ export default function GamePage() {
       </div>
       
       {/* Zone de jeu */}
-      <div className="relative w-full max-w-5xl h-[80vh] border-4 border-cyan-500 bg-black bg-opacity-30 rounded-lg overflow-hidden shadow-[0_0_30px_rgba(6,182,212,0.5)]">
+      <div 
+        ref={gameContainerRef}
+        className="relative w-full max-w-5xl h-[80vh] border-4 border-cyan-500 bg-black bg-opacity-30 rounded-lg overflow-hidden shadow-[0_0_30px_rgba(6,182,212,0.5)]"
+        style={{ 
+          // Maintenir un ratio d'aspect en fonction des dimensions de la grille
+          aspectRatio: `${gridSize.width / gridSize.height}`,
+          maxHeight: '80vh',
+          width: 'auto'
+        }}
+      >
         {/* Scores */}
         <div className="absolute top-4 left-1/3 transform -translate-x-1/2 text-6xl font-bold text-white font-mono">{scoreLeft}</div>
         <div className="absolute top-4 right-1/3 transform translate-x-1/2 text-6xl font-bold text-white font-mono">{scoreRight}</div>
@@ -360,8 +432,8 @@ export default function GamePage() {
         <div
           className="absolute bg-white rounded-full shadow-[0_0_15px_rgba(255,255,255,0.8)] animate-pulse"
           style={{
-            width: `${ballSize * 2}px`,
-            height: `${ballSize * 2}px`,
+            width: `${realBallSize}px`,
+            height: `${realBallSize}px`,
             left: `${ballPosition.x}%`,
             top: `${ballPosition.y}%`,
             transform: "translate(-50%, -50%)",
@@ -372,9 +444,9 @@ export default function GamePage() {
         <div
           className="absolute bg-gradient-to-b from-blue-400 to-cyan-600 rounded shadow-[0_0_10px_rgba(6,182,212,0.7)]"
           style={{
-            width: "12px",
+            width: `${realPaddleWidth}px`,
             height: `${leftPaddle.size}px`,
-            left: "20px",
+            left: `${leftPaddle.x}%`,
             top: `${leftPaddle.y}%`,
             transform: "translateY(-50%)",
           }}
@@ -384,9 +456,9 @@ export default function GamePage() {
         <div
           className="absolute bg-gradient-to-b from-rose-400 to-pink-600 rounded shadow-[0_0_10px_rgba(244,114,182,0.7)]"
           style={{
-            width: "12px",
+            width: `${realPaddleWidth}px`,
             height: `${rightPaddle.size}px`,
-            right: "20px",
+            right: `${100 - rightPaddle.x - (rightPaddle.width / gridSize.width * 100)}%`,
             top: `${rightPaddle.y}%`,
             transform: "translateY(-50%)",
           }}
@@ -462,4 +534,4 @@ export default function GamePage() {
       <DebugConsole />
     </div>
   );
-} 
+}

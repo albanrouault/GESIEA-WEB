@@ -15,24 +15,54 @@ export default function LaunchPage() {
   const [loading, setLoading] = useState(true);
   const { isConnected, sendCommand } = useSerial();
   
-  // Calculer les dimensions du terrain
+  // Dimensions de base pour le terrain (valeurs par défaut plus élevées)
+  const BASE_GRID_WIDTH = 400;
+  const BASE_GRID_HEIGHT = 300;
+  
+  // Facteur de mise à l'échelle pour les valeurs des sliders
+  // (rapport entre valeur max du slider et paramètre attendu)
+  const SLIDER_SCALE_FACTOR = {
+    ballSpeed: 0.5,  // Facteur d'échelle pour la vitesse de la balle
+    ballSize: 0.8,   // Facteur d'échelle pour la taille de la balle
+    paddleSize: 4,   // Facteur d'échelle pour la taille des raquettes
+    paddleSpeed: 0.6  // Facteur d'échelle pour la vitesse des raquettes
+  };
+  
+  // Calculer les dimensions du terrain en fonction de la taille d'affichage
   const calculateTerrainDimensions = () => {
-    // Obtenir la largeur maximale du terrain (max-w-5xl = 64rem = 1024px)
+    // Obtenir les dimensions réelles du composant qui contiendra le jeu
+    // max-w-5xl = 64rem = 1024px max-width
     const maxWidth = 1024;
     // Obtenir la hauteur de la fenêtre
     const windowHeight = window.innerHeight;
     // Calculer la hauteur du terrain (80vh)
     const terrainHeight = windowHeight * 0.8;
     
-    // Calculer la largeur réelle du terrain (en respectant le ratio)
-    const terrainWidth = Math.min(maxWidth, window.innerWidth);
+    // Calculer la largeur réelle du terrain (en respectant les contraintes)
+    const terrainWidth = Math.min(maxWidth, window.innerWidth * 0.9);
     
-    // Convertir en ratio 100 pour le microcontrôleur
-    const ratio = 100 / Math.max(terrainWidth, terrainHeight);
-    const width = Math.round(terrainWidth * ratio);
-    const height = Math.round(terrainHeight * ratio);
+    // Définir un ratio d'aspect souhaité (4:3 est standard pour les jeux)
+    const aspectRatio = 4/3;
     
-    return { width, height };
+    // Calculer les dimensions finales en fonction de l'aspect ratio
+    let finalWidth, finalHeight;
+    
+    if (terrainWidth / terrainHeight > aspectRatio) {
+      // Si la zone disponible est plus large que l'aspect ratio
+      finalHeight = terrainHeight;
+      finalWidth = terrainHeight * aspectRatio;
+    } else {
+      // Si la zone disponible est plus étroite que l'aspect ratio
+      finalWidth = terrainWidth;
+      finalHeight = terrainWidth / aspectRatio;
+    }
+    
+    // Calculer les dimensions de la grille logique (plus grande pour plus de précision)
+    // Utilisons une base de 400x300 comme dimensions minimales
+    const gridWidth = Math.max(BASE_GRID_WIDTH, Math.round(finalWidth / 2));
+    const gridHeight = Math.max(BASE_GRID_HEIGHT, Math.round(finalHeight / 2));
+    
+    return { width: gridWidth, height: gridHeight, aspectRatio };
   };
 
   // Vérifier si l'utilisateur est connecté
@@ -41,6 +71,19 @@ export default function LaunchPage() {
       router.push("/connexion");
     } else {
       setLoading(false);
+      
+      // Récupérer les paramètres stockés s'ils existent
+      const storedWinPoints = localStorage.getItem("winPoints");
+      const storedBallSpeed = localStorage.getItem("ballSpeed");
+      const storedBallSize = localStorage.getItem("ballSize");
+      const storedPaddleSize = localStorage.getItem("paddleSize");
+      const storedPaddleSpeed = localStorage.getItem("paddleSpeed");
+      
+      if (storedWinPoints) setWinPoints(parseInt(storedWinPoints));
+      if (storedBallSpeed) setBallSpeed(parseInt(storedBallSpeed));
+      if (storedBallSize) setBallSize(parseInt(storedBallSize));
+      if (storedPaddleSize) setPaddleSize(parseInt(storedPaddleSize));
+      if (storedPaddleSpeed) setPaddleSpeed(parseInt(storedPaddleSpeed));
     }
   }, [isConnected, router]);
 
@@ -49,22 +92,62 @@ export default function LaunchPage() {
     router.push("/connexion");
   };
 
+  // Adapter les paramètres des sliders en fonction de la taille de la grille
+  const scaleParameters = (dimensions) => {
+    // Ajuster les valeurs des paramètres en fonction de la taille du terrain
+    // Plus le terrain est grand, plus les valeurs doivent être adaptées
+    
+    // Base de référence: terrain de 400x300
+    const referenceArea = BASE_GRID_WIDTH * BASE_GRID_HEIGHT;
+    const actualArea = dimensions.width * dimensions.height;
+    
+    // Facteur d'échelle basé sur le ratio des surfaces
+    const scaleFactor = Math.sqrt(actualArea / referenceArea);
+    
+    // Appliquer l'échelle aux paramètres
+    const scaledBallSpeed = Math.max(1, Math.round(ballSpeed * SLIDER_SCALE_FACTOR.ballSpeed * scaleFactor));
+    const scaledBallSize = Math.max(2, Math.round(ballSize * SLIDER_SCALE_FACTOR.ballSize * scaleFactor));
+    const scaledPaddleSize = Math.max(10, Math.round(paddleSize * SLIDER_SCALE_FACTOR.paddleSize * scaleFactor));
+    const scaledPaddleSpeed = Math.max(1, Math.round(paddleSpeed * SLIDER_SCALE_FACTOR.paddleSpeed * scaleFactor));
+    
+    return {
+      ballSpeed: scaledBallSpeed,
+      ballSize: scaledBallSize,
+      paddleSize: scaledPaddleSize,
+      paddleSpeed: scaledPaddleSpeed
+    };
+  };
+
   // Démarrage du jeu
   const handleLaunchGame = async () => {
     try {
       // Calculer les dimensions réelles du terrain
-      const { width, height } = calculateTerrainDimensions();
+      const dimensions = calculateTerrainDimensions();
+      
+      // Calculer les zones de jeu (25% de la largeur à gauche et à droite)
+      const leftZoneWidth = Math.round(dimensions.width * 0.25);
+      const rightZoneWidth = Math.round(dimensions.width * 0.25);
+      
+      // Adapter les paramètres à la taille du terrain
+      const scaledParams = scaleParameters(dimensions);
+      
+      console.log("Dimensions du terrain:", dimensions);
+      console.log("Paramètres adaptés:", scaledParams);
       
       // Envoi de la trame formatée au STM32 avec le nouveau format
-      // Format: game:start:largeurTerrain:hauteurTerrain:pointsGagnants:vitesseBalle:tailleBalle:vitesseRaquette:tailleRaquette
-      await sendCommand(`game:start:${width}:${height}:${winPoints}:${ballSpeed}:${ballSize}:${paddleSpeed}:${paddleSize}`);
+      // Format: game:start:largeurTerrain:hauteurTerrain:pointsGagnants:vitesseBalle:tailleBalle:vitesseRaquette:tailleRaquette:zoneGauche:zoneDroite
+      await sendCommand(`game:start:${dimensions.width}:${dimensions.height}:${winPoints}:${scaledParams.ballSpeed}:${scaledParams.ballSize}:${scaledParams.paddleSpeed}:${scaledParams.paddleSize}:${leftZoneWidth}:${rightZoneWidth}`);
       
-      // Stocker les paramètres pour le jeu
+      // Stocker les paramètres originaux (non ajustés) pour le jeu
       localStorage.setItem("winPoints", winPoints.toString());
       localStorage.setItem("ballSpeed", ballSpeed.toString());
       localStorage.setItem("ballSize", ballSize.toString());
       localStorage.setItem("paddleSize", paddleSize.toString());
       localStorage.setItem("paddleSpeed", paddleSpeed.toString());
+      
+      // Stocker également les dimensions du terrain pour référence
+      localStorage.setItem("gridWidth", dimensions.width.toString());
+      localStorage.setItem("gridHeight", dimensions.height.toString());
       
       // Naviguer vers la page de jeu
       router.push("/game");
@@ -290,4 +373,4 @@ export default function LaunchPage() {
       <DebugConsole />
     </div>
   );
-} 
+}
