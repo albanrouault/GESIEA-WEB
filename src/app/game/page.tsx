@@ -233,10 +233,10 @@ export default function GamePage() {
     // Calcul des positions relatives en pourcentage pour l'affichage
     const { width: gridWidth, height: gridHeight } = gridSize;
     
-    // Mise à jour de la position de la balle avec un ajustement pour le centrage
-    // La position de la balle est son centre, pas son coin supérieur gauche
-    const ballXPercent = (gameData.ballX / gridWidth) * 100;
-    const ballYPercent = (gameData.ballY / gridHeight) * 100;
+    // For the ball, convert the top-left corner to center coordinates
+    // since we're using transform: translate(-50%, -50%) in the CSS
+    const ballXPercent = ((gameData.ballX + gameData.ballSize / 2) / gridWidth) * 100;
+    const ballYPercent = ((gameData.ballY + gameData.ballSize / 2) / gridHeight) * 100;
     
     setBallPosition({
       x: ballXPercent,
@@ -245,18 +245,19 @@ export default function GamePage() {
     setBallSize(gameData.ballSize);
     
     // Mise à jour de la position et taille des raquettes
-    // Pour les raquettes, nous utilisons la position exacte reçue du contrôleur
-    // sans ajustement supplémentaire car les raquettes sont positionnées par leur bord
+    // For the left paddle, keep x as the left edge but adjust y for vertical centering
+    // since we're using transform: translate(0, -50%) in the CSS
     setLeftPaddle({
       x: (gameData.paddleLeftX / gridWidth) * 100,
-      y: (gameData.paddleLeftY / gridHeight) * 100,
+      y: ((gameData.paddleLeftY + gameData.paddleLeftSize / 2) / gridHeight) * 100,
       size: gameData.paddleLeftSize,
       width: gameData.paddleWidth
     });
-    
+
+    // Same adjustment for the right paddle
     setRightPaddle({
       x: (gameData.paddleRightX / gridWidth) * 100,
-      y: (gameData.paddleRightY / gridHeight) * 100,
+      y: ((gameData.paddleRightY + gameData.paddleRightSize / 2) / gridHeight) * 100,
       size: gameData.paddleRightSize,
       width: gameData.paddleWidth
     });
