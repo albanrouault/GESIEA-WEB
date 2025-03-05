@@ -83,6 +83,10 @@ export default function GamePage() {
     localStorage.setItem("exchanges", exchanges.toString());
     localStorage.setItem("finalScore", `${scoreLeft}-${scoreRight}`);
     
+    // Ajouter les scores individuels dans le localStorage
+    localStorage.setItem("player1Points", scoreLeft.toString());
+    localStorage.setItem("player2Points", scoreRight.toString());
+    
     // Envoyer la commande de fin de jeu au STM32
     if (isConnected) {
       sendCommand("game:stop");

@@ -10,7 +10,9 @@ export default function FinishPage() {
   const [gameData, setGameData] = useState({
     winner: "Joueur",
     duration: "00:00",
-    finalScore: "0-0"
+    finalScore: "0-0",
+    player1Points: 0,
+    player2Points: 0
   });
   
   useEffect(() => {
@@ -19,6 +21,8 @@ export default function FinishPage() {
       const winner = localStorage.getItem("winner");
       const duration = localStorage.getItem("duration");
       const finalScore = localStorage.getItem("finalScore");
+      const player1Points = localStorage.getItem("player1Points");
+      const player2Points = localStorage.getItem("player2Points");
       
       // Si les données ne sont pas disponibles, rediriger vers la page de lancement
       if (!winner || !duration || !finalScore) {
@@ -29,21 +33,33 @@ export default function FinishPage() {
       setGameData({
         winner: winner,
         duration: duration,
-        finalScore: finalScore
+        finalScore: finalScore,
+        player1Points: parseInt(player1Points || "0", 10),
+        player2Points: parseInt(player2Points || "0", 10)
       });
 
-      // Réinitialiser les données du jeu dans le localStorage
-      localStorage.removeItem("winner");
-      localStorage.removeItem("duration");
-      localStorage.removeItem("finalScore");
+      // On ne supprime plus les données immédiatement pour éviter les redirections involontaires
+      // La suppression sera effectuée lors des actions explicites de l'utilisateur (boutons)
     }
   }, [router]);
   
   const handleReplay = () => {
+    // Nettoyer les données du localStorage avant de naviguer
+    localStorage.removeItem("winner");
+    localStorage.removeItem("duration");
+    localStorage.removeItem("finalScore");
+    localStorage.removeItem("player1Points");
+    localStorage.removeItem("player2Points");
     router.push("/launch");
   };
   
   const handleHome = () => {
+    // Nettoyer les données du localStorage avant de naviguer
+    localStorage.removeItem("winner");
+    localStorage.removeItem("duration");
+    localStorage.removeItem("finalScore");
+    localStorage.removeItem("player1Points");
+    localStorage.removeItem("player2Points");
     router.push("/connexion");
   };
   
@@ -78,14 +94,26 @@ export default function FinishPage() {
             
             <div className="h-px w-full bg-white opacity-10 my-4"></div>
             
-            <div className="grid grid-cols-2 gap-6">
-              <div className="text-center">
-                <div className="text-sm text-gray-400 mb-1">Score final</div>
-                <div className="text-3xl font-bold text-white">{gameData.finalScore}</div>
-              </div>
+            <div className="mb-4">
               <div className="text-center">
                 <div className="text-sm text-gray-400 mb-1">Durée</div>
                 <div className="text-3xl font-bold text-cyan-400">{gameData.duration}</div>
+              </div>
+            </div>
+            
+            {/* Tableau des scores */}
+            <div className="bg-white bg-opacity-5 rounded-lg p-4 mb-2">
+              <h3 className="text-white text-lg font-medium mb-3 text-center">Scores finaux</h3>
+              <div className="grid grid-cols-3 gap-2 items-center">
+                <div className="text-center">
+                  <div className="font-bold text-2xl text-blue-400">{gameData.player1Points}</div>
+                  <div className="text-xs text-gray-400 mt-1">Joueur 1</div>
+                </div>
+                <div className="text-center text-white text-2xl font-bold">-</div>
+                <div className="text-center">
+                  <div className="font-bold text-2xl text-red-400">{gameData.player2Points}</div>
+                  <div className="text-xs text-gray-400 mt-1">Joueur 2</div>
+                </div>
               </div>
             </div>
           </div>
